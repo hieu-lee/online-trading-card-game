@@ -2,7 +2,7 @@
 
 A real-time multiplayer card game with poker hand bluffing mechanics, built using Python WebSockets and terminal interface.
 
-## Current Status: Phase 1 Complete
+## Current Status: Phase 5 (Game Logic) In Progress
 
 ✅ **Phase 1 - Project Setup & Architecture**
 - [x] Project structure setup
@@ -70,6 +70,39 @@ python client.py
 - Players call poker hands or call bluff
 - Player with 5 losses is eliminated
 - Last player standing wins
+
+The game is played in a single shared **room** with a maximum of **8 players**.
+
+• The first user to connect becomes the **host** (they can kick players or restart the game). If the host disconnects, a new host is randomly selected from the remaining players.
+
+• Play is divided into **rounds**.  A round finishes as soon as one player "loses" (see Bluff Resolution below).
+
+• At the start of round *r*, every player is dealt **N = (losses + 1)** face-down cards, where *losses* is the number of rounds that player has previously lost.  In round 1 everyone has exactly one card; each subsequent loss permanently increases the cards you receive by one.
+
+• If a player ever ends a round holding **5 cards**, they are **eliminated** from the game.
+
+• The game ends when only **one player remains** – that player is the winner.
+
+### Round Flow
+1. **Choose starting player** – In round 1 a random player starts. In later rounds it is the player to the immediate left of the previous starting player.
+2. The starting player **calls a poker hand** that they claim exists somewhere in the combined set of all players' cards (e.g. "pair of Aces", "straight flush hearts from 9").
+3. Moving clockwise, each subsequent player must either:
+   a. **Call a higher-ranking hand** than the last call, **or**
+   b. **Call "bluff"** on the previous player.
+4. If a new hand is called, the turn passes along and step 3 repeats.
+5. If "bluff" is called, everyone reveals their cards:
+   • If the previously-called hand **is present**, the accuser (the player who called bluff) **loses** the round.
+   • If the hand **is not present**, the player who made the false claim **loses** the round.
+
+### Actions During Your Turn
+• `call <hand>` – Announce a poker hand that outranks the current call.
+• `bluff` – Challenge the validity of the previous call.
+
+### Consequences of Losing a Round
+The loser gains **one additional loss** (meaning they will be dealt one extra card in all future rounds).  When a player's card count reaches five they are removed from the game immediately.
+
+### Winning the Game
+Rounds continue in this fashion until a single player is left standing, at which point they are declared the winner.
 
 ### Poker Hands (Low to High)
 1. High Card
@@ -162,7 +195,8 @@ Currently, you can test:
 
 ---
 
-**Status**: Phase 1 Complete - Ready for Phase 2 Development 
+**Status**: Phase 1 Complete - Ready for Phase 2 Development
+**Status**: Phase 5 (Game Logic) In Progress — see TASKS.md for remaining work
 
 ## Troubleshooting Guide
 
@@ -203,3 +237,7 @@ Below is a concise reference of the message `type` values you may encounter:
 | Errors | `error` | Standardised error payloads |
 
 Each concrete payload (inside `data`) is documented in the Pydantic models in `message_protocol.py`.  Refer to that file for the authoritative schema should you need to integrate an external client or perform automated testing. 
+
+## .gitignore
+
+This file contains rules for Git to ignore certain files and directories.
