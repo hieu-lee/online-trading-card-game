@@ -136,8 +136,10 @@ def translate_shorthand_to_spec(cmd: str) -> Optional[str]:
 class GameClient:
     """Terminal client for the card game"""
     
-    def __init__(self, server_uri: str = "ws://localhost:8765"):
-        self.server_uri = server_uri
+    def __init__(self, server_uri: str = None):
+        # Determine default server URI – environment variable overrides hard-coded default
+        default_uri = os.getenv("CARDGAME_SERVER", "wss://online-trading-card-game-production.up.railway.app")
+        self.server_uri = server_uri or default_uri
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
         self.user_id: Optional[str] = None
         self.username: Optional[str] = None
@@ -642,7 +644,10 @@ class GameClient:
 
 async def main():
     """Main client entry point"""
-    client = GameClient()
+    # Allow override via command-line arg: python client.py wss://custom-url
+    import sys
+    uri_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    client = GameClient(server_uri=uri_arg)
     await client.run()
 
 
