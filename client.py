@@ -151,6 +151,9 @@ class GameClient:
         self.input_thread: Optional[threading.Thread] = None
         self.running: bool = False
         
+        # Track latest hand call for each player
+        self.player_last_calls: Dict[str, str] = {}
+        
         # Used to skip unnecessary terminal redraws for performance optimisation
         self._last_render_signature: Optional[str] = None
     
@@ -342,9 +345,7 @@ class GameClient:
                     # Status label
                     status = "Eliminated" if is_eliminated else "Active"
                     # Latest call for this player
-                    last_call = ""
-                    if current_call and user_id == current_call.get("player_id"):
-                        last_call = current_call.get("hand", "")
+                    last_call = self.player_last_calls.get(user_id, "")
                     # Turn indicator only during playing phase
                     turn_indicator = ""
                     if phase == "playing" and user_id == current_player_id:
@@ -387,6 +388,9 @@ class GameClient:
         
         # Commands
         self.display_available_commands()
+        
+        # Ensure prompt is visible after any redraws
+        console.print("Enter command: ", style="bold yellow", end="")
     
     def display_available_commands(self):
         """Display available commands based on current state"""
@@ -420,6 +424,17 @@ class GameClient:
             
             if message.type == MessageType.GAME_STATE_UPDATE:
                 self.game_state = message.data
+                # Update per-player last calls mapping
+                current_call_info = self.game_state.get("game_state", {}).get("current_call")
+                if current_call_info:
+                    pid = current_call_info.get("player_id")
+                    hand_str = current_call_info.get("hand")
+                    if pid and hand_str:
+                        self.player_last_calls[pid] = hand_str
+                # Clear last calls if game not in playing phase
+                phase_now = self.game_state.get("game_state", {}).get("phase", "waiting")
+                if phase_now != "playing":
+                    self.player_last_calls.clear()
                 # Clear cached hand when game not in playing phase
                 phase = self.game_state.get("game_state", {}).get("phase", "waiting")
                 if phase != "playing":
@@ -435,6 +450,7 @@ class GameClient:
                 self.display_game_state()
             
             elif message.type == MessageType.GAME_RESTART:
+                self.player_last_calls.clear()
                 self.add_message("Game restarted!")
                 self.your_cards = []  # Reset visible cards on restart
                 self.display_game_state()
@@ -465,6 +481,7 @@ class GameClient:
             
             elif message.type == MessageType.ROUND_START:
                 rn = message.data.get("round_number")
+                self.player_last_calls.clear()
                 self.add_message(f"Round {rn} has started")
                 self.display_game_state()
             
@@ -557,10 +574,12 @@ class GameClient:
         else:
             # Try to interpret as shorthand poker hand specification
             spec = translate_shorthand_to_spec(command)
-            if spec:
-                await self.send_message(MessageType.CALL_HAND, {"user_id": self.user_id, "hand_spec": spec})
-            else:
-                console.print(f"[red]Unknown command: {command}[/red]")
+            if spec is None:
+                # Fallback: treat the entire input as a direct hand specification.
+                # Rely on the server-side HandParser for validation so that users can
+                # type any format accepted by the server (e.g. "straight flush hearts from 10").
+                spec = command
+            await self.send_message(MessageType.CALL_HAND, {"user_id": self.user_id, "hand_spec": spec})
     
     def show_help(self):
         """Display game instructions and command reference"""

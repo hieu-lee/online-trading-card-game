@@ -489,8 +489,10 @@ class HandParser:
         rank_map = {
             '2': Rank.TWO, '3': Rank.THREE, '4': Rank.FOUR, '5': Rank.FIVE,
             '6': Rank.SIX, '7': Rank.SEVEN, '8': Rank.EIGHT, '9': Rank.NINE,
-            '10': Rank.TEN, 'jack': Rank.JACK, 'queen': Rank.QUEEN,
-            'king': Rank.KING, 'ace': Rank.ACE
+            '10': Rank.TEN, 'jack': Rank.JACK, 'j': Rank.JACK,
+            'queen': Rank.QUEEN, 'q': Rank.QUEEN,
+            'king': Rank.KING, 'k': Rank.KING,
+            'ace': Rank.ACE, 'a': Rank.ACE
         }
         if token not in rank_map:
             raise ValueError(f'Unknown rank: {token}')
