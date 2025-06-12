@@ -13,6 +13,7 @@ from enum import Enum, IntEnum
 from typing import List, Optional, Tuple, Dict, Any
 from dataclasses import dataclass
 import re
+from collections import Counter
 
 
 class Suit(Enum):
@@ -176,102 +177,48 @@ class HandValidator:
         return counts
     
     @staticmethod
-    def is_straight(ranks: List[Rank]) -> Tuple[bool, Optional[Rank]]:
-        """Check if ranks form a straight, return (is_straight, starting_rank)"""
-        min_rank = min(ranks)
-        max_rank = max(ranks)
-        if len(ranks) == 5 and max_rank - min_rank == 4:
-            return True, min_rank
-        return False, None
-    
-    @staticmethod
-    def detect_hands_in_cards(cards: List[Card]) -> List[PokerHand]:
-        """Detect all possible poker hands in a collection of cards"""
-        if not cards:
-            return []
-        
-        hands = []
-        rank_counts = HandValidator.get_rank_counts(cards)
-        suit_counts = HandValidator.get_suit_counts(cards)
-        
-        # Check for pairs, three of a kind, four of a kind
-        for rank, count in rank_counts.items():
-            if count >= 2:
-                hands.append(PokerHand(HandType.PAIR, primary_rank=rank))
-            if count >= 3:
-                hands.append(PokerHand(HandType.THREE_OF_A_KIND, primary_rank=rank))
-            if count >= 4:
-                hands.append(PokerHand(HandType.FOUR_OF_A_KIND, primary_rank=rank))
-        
-        # Check for two pairs
-        pairs = [rank for rank, count in rank_counts.items() if count >= 2]
-        if len(pairs) >= 2:
-            for i in range(len(pairs)):
-                for j in range(i + 1, len(pairs)):
-                    hands.append(PokerHand(
-                        HandType.TWO_PAIRS, 
-                        primary_rank=max(pairs[i], pairs[j]),
-                        secondary_rank=min(pairs[i], pairs[j])
-                    ))
-        
-        # Check for full house
-        threes = [rank for rank, count in rank_counts.items() if count >= 3]
-        twos = [rank for rank, count in rank_counts.items() if count >= 2]
-        for three_rank in threes:
-            for two_rank in twos:
-                if three_rank != two_rank:
-                    hands.append(PokerHand(
-                        HandType.FULL_HOUSE,
-                        primary_rank=three_rank,
-                        secondary_rank=two_rank
-                    ))
-        
-        # Check for straights
-        all_ranks = [card.rank for card in cards]
-        is_straight, start_rank = HandValidator.is_straight(all_ranks)
-        if is_straight:
-            hands.append(PokerHand(HandType.STRAIGHT, primary_rank=start_rank))
-        
-        # Check for flushes
-        for suit, count in suit_counts.items():
-            if count >= 5:
-                suit_cards = [card for card in cards if card.suit == suit]
-                suit_ranks = sorted([card.rank for card in suit_cards], reverse=True)[:5]
-                hands.append(PokerHand(
-                    HandType.FLUSH,
-                    suit=suit,
-                    ranks=suit_ranks
-                ))
-                
-                # Check for straight flush and royal flush
-                is_straight_flush, start_rank = HandValidator.is_straight(suit_ranks)
-                if is_straight_flush:
-                    if start_rank == Rank.TEN:  # Royal flush (10-J-Q-K-A)
-                        hands.append(PokerHand(HandType.ROYAL_FLUSH, suit=suit))
-                    else:
-                        hands.append(PokerHand(
-                            HandType.STRAIGHT_FLUSH,
-                            suit=suit,
-                            primary_rank=start_rank
-                        ))
-        
-        # Add high cards
-        for rank in set(all_ranks):
-            hands.append(PokerHand(HandType.HIGH_CARD, primary_rank=rank))
-        
-        return hands
-    
-    @staticmethod
     def validate_hand_call(hand_call: PokerHand, all_cards: List[Card]) -> bool:
         """Validate if a specific hand call exists in the collection of cards"""
-        detected_hands = HandValidator.detect_hands_in_cards(all_cards)
-        
-        for detected_hand in detected_hands:
-            if HandValidator.hands_match(hand_call, detected_hand):
-                return True
-        
-        return False
-    
+        if hand_call.hand_type == HandType.HIGH_CARD:
+            return hand_call.primary_rank in [card.rank for card in all_cards]
+        rank_counts = Counter([card.rank for card in all_cards])
+        if hand_call.hand_type == HandType.PAIR:
+            return rank_counts[hand_call.primary_rank] >= 2
+        if hand_call.hand_type == HandType.TWO_PAIRS:
+            return rank_counts[hand_call.primary_rank] >= 2 and rank_counts[hand_call.secondary_rank] >= 2
+        if hand_call.hand_type == HandType.THREE_OF_A_KIND:
+            return rank_counts[hand_call.primary_rank] >= 3
+        if hand_call.hand_type == HandType.FOUR_OF_A_KIND:
+            return rank_counts[hand_call.primary_rank] >= 4
+        if hand_call.hand_type == HandType.FULL_HOUSE:
+            return rank_counts[hand_call.primary_rank] >= 3 and rank_counts[hand_call.secondary_rank] >= 2
+        if hand_call.hand_type == HandType.STRAIGHT:
+            hand_call.ranks = [hand_call.primary_rank + i for i in range(5)]
+            return all(rank_counts[rank] >= 1 for rank in hand_call.ranks)
+        if hand_call.hand_type == HandType.FLUSH:
+            suit_ranks = dict()
+            for card in all_cards:
+                if card.suit not in suit_ranks:
+                    suit_ranks[card.suit] = set()
+                suit_ranks[card.suit].add(card.rank)
+            return hand_call.suit in suit_ranks and all(hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5))
+        if hand_call.hand_type == HandType.STRAIGHT_FLUSH:
+            hand_call.ranks = [hand_call.primary_rank + i for i in range(5)]
+            suit_ranks = dict()
+            for card in all_cards:
+                if card.suit not in suit_ranks:
+                    suit_ranks[card.suit] = set()
+                suit_ranks[card.suit].add(card.rank)
+            return hand_call.suit in suit_ranks and all(hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5))
+        if hand_call.hand_type == HandType.ROYAL_FLUSH:
+            hand_call.ranks = [Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]
+            suit_ranks = dict()
+            for card in all_cards:
+                if card.suit not in suit_ranks:
+                    suit_ranks[card.suit] = set()
+                suit_ranks[card.suit].add(card.rank)
+            return hand_call.suit in suit_ranks and all(hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5))
+
     @staticmethod
     def hands_match(hand1: PokerHand, hand2: PokerHand) -> bool:
         """Check if two poker hands are the same"""
