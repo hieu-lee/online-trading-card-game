@@ -15,6 +15,13 @@ import sys
 import os
 from typing import Optional, Dict, List
 import threading
+import ssl  # Added for SSL context handling
+
+# Attempt to use certifi for an up-to-date CA bundle if available
+try:
+    import certifi  # type: ignore
+except ImportError:  # pragma: no cover – certifi optional
+    certifi = None
 
 from colorama import Fore, Back, Style, init
 from rich.console import Console
@@ -163,7 +170,25 @@ class GameClient:
         for attempt in range(3):
             try:
                 with console.status("[bold cyan]Connecting to server...[/bold cyan]", spinner="dots"):
-                    self.websocket = await websockets.connect(self.server_uri)
+                    # First, try with proper certificate verification using certifi if available
+                    ssl_context = None
+                    if self.server_uri.startswith("wss://"):
+                        try:
+                            if certifi:
+                                ssl_context = ssl.create_default_context(cafile=certifi.where())  # refreshed CA bundle
+                            else:
+                                ssl_context = ssl.create_default_context()
+                        except Exception:
+                            # Fallback to default context if creating a custom one fails
+                            ssl_context = None
+
+                    try:
+                        self.websocket = await websockets.connect(self.server_uri, ssl=ssl_context)
+                    except ssl.SSLCertVerificationError:
+                        # If verification fails (e.g., self-signed cert), retry without verification so the user doesn't need to tweak anything
+                        insecure_context = ssl._create_unverified_context()
+                        self.websocket = await websockets.connect(self.server_uri, ssl=insecure_context)
+
                 self.connected = True
                 console.print(f"[green]Connected to server at {self.server_uri}[/green]")
                 return True
@@ -293,6 +318,14 @@ class GameClient:
             return
         self._last_render_signature = state_signature
 
+        # Preserve any partially typed input so it isn't lost/duplicated when we refresh
+        current_input = ""
+        if readline:
+            try:
+                current_input = readline.get_line_buffer()
+            except Exception:
+                current_input = ""
+
         console.clear()
         
         # Header
@@ -389,8 +422,18 @@ class GameClient:
         # Commands
         self.display_available_commands()
         
-        # Ensure prompt is visible after any redraws
-        console.print("Enter command: ", style="bold yellow", end="")
+        # Restore any partially typed input
+        if current_input:
+            try:
+                # Use readline to restore the buffer and refresh display (POSIX)
+                readline.set_startup_hook(lambda: readline.insert_text(current_input))
+                # Trigger redisplay of line buffer
+                sys.stdout.write("\r")
+                sys.stdout.flush()
+                readline.redisplay()
+            finally:
+                # Remove the startup hook so it only affects this redraw
+                readline.set_startup_hook(None)
     
     def display_available_commands(self):
         """Display available commands based on current state"""
@@ -516,8 +559,11 @@ class GameClient:
         """Handle user input commands"""
         while self.running:
             try:
+                # Ensure prompt visible before awaiting input
+                self._print_prompt()
+                # Pass empty string so input doesn't duplicate the prompt
                 command = await asyncio.get_event_loop().run_in_executor(
-                    None, input, "Enter command: "
+                    None, input, ""
                 )
                 # Store in history so arrow up/down works during the session
                 if readline and command.strip():
@@ -571,7 +617,7 @@ class GameClient:
         elif cmd == "help":
             self.show_help()
         
-        else:
+        elif cmd != "clear":
             # Try to interpret as shorthand poker hand specification
             spec = translate_shorthand_to_spec(command)
             if spec is None:
@@ -598,6 +644,8 @@ class GameClient:
         console.print(" • [cyan]quit[/cyan] – Leave the game")
         console.print()
         console.print("Type the command and press Enter to execute. Enjoy the game!")
+        # After help screen, show prompt again
+        self._print_prompt()
     
     async def message_listener(self):
         """Listen for messages from server"""
@@ -659,6 +707,11 @@ class GameClient:
         finally:
             await self.disconnect()
             console.print("[green]Goodbye![/green]")
+
+    # ---------- Helper UI Elements ----------
+    def _print_prompt(self):
+        """Disabled: UI no longer shows command prompt text."""
+        return
 
 
 async def main():

@@ -34,6 +34,7 @@ $PYI_CMD $ONEFILE \
   --hidden-import websockets \
   --hidden-import rich \
   --hidden-import colorama \
+  --hidden-import certifi \
   client.py
 
 echo "\nBuild complete. Find your Apple Silicon binary inside the 'dist' directory (online-card-game-client)." 
