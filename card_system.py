@@ -178,14 +178,10 @@ class HandValidator:
     @staticmethod
     def is_straight(ranks: List[Rank]) -> Tuple[bool, Optional[Rank]]:
         """Check if ranks form a straight, return (is_straight, starting_rank)"""
-        sorted_ranks = sorted(set(ranks))
-        
-        # Check for regular straight
-        for i in range(len(sorted_ranks) - 4):
-            if sorted_ranks[i+4] - sorted_ranks[i] == 4:
-                return True, sorted_ranks[i]
-        
-        # Removed wheel straight detection to disallow A-2-3-4-5 as per game spec
+        min_rank = min(ranks)
+        max_rank = max(ranks)
+        if len(ranks) == 5 and max_rank - min_rank == 4:
+            return True, min_rank
         return False, None
     
     @staticmethod
@@ -433,7 +429,18 @@ class HandParser:
             rank = HandParser._parse_rank(m.group(1))
             return PokerHand(HandType.STRAIGHT, primary_rank=rank)
 
-        # Flush
+        # Flush (new syntax without "of" and with space-separated ranks)
+        m = re.match(r'^flush\s+(\w+)(?:\s+([\w\s]+))$', s)
+        if m:
+            suit = HandParser._parse_suit(m.group(1))
+            ranks_str = m.group(2).strip()
+            rank_tokens = re.split(r'[\s]+', ranks_str)
+            if len(rank_tokens) != 5:
+                raise ValueError('Flush must specify exactly 5 ranks')
+            ranks = [HandParser._parse_rank(r) for r in rank_tokens]
+            return PokerHand(HandType.FLUSH, suit=suit, ranks=ranks)
+
+        # Flush (legacy syntax with "of" and optional punctuation)
         m = re.match(r'^flush\s+of\s+(\w+)[\s\:\-,]*(.*)', s)
         if m:
             suit = HandParser._parse_suit(m.group(1))
