@@ -8,6 +8,10 @@ class TestIsStraight(unittest.TestCase):
         result, start = HandValidator.is_straight(ranks)
         self.assertTrue(result)
         self.assertEqual(start, Rank.TWO)
+        ranks = [Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]
+        result, start = HandValidator.is_straight(ranks)
+        self.assertTrue(result)
+        self.assertEqual(start, Rank.TEN)
 
     def test_not_straight_with_gap(self):
         ranks = [Rank.TWO, Rank.THREE, Rank.FOUR, Rank.SIX, Rank.SEVEN]
@@ -49,6 +53,8 @@ class TestHandParser(unittest.TestCase):
     def test_straight(self):
         hand = HandParser.parse_hand_call("Straight from 7")
         self.assertEqual(hand, PokerHand(HandType.STRAIGHT, primary_rank=Rank.SEVEN))
+        hand = HandParser.parse_hand_call("straight from 10")
+        self.assertEqual(hand, PokerHand(HandType.STRAIGHT, primary_rank=Rank.TEN))
 
     def test_flush(self):
         hand = HandParser.parse_hand_call("Flush of hearts: 2, 5, 7, king, ace")
