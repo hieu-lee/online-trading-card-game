@@ -141,7 +141,7 @@ def translate_shorthand_to_spec(cmd: str) -> Optional[str]:
     return None
 
 # ------- Hand-call Tab-completion (module level) -------
-HAND_TYPE_COMPLETIONS = [
+KEYWORDS_COMPLETIONS = [
     "highcard",
     "pair of",
     "two pairs",
@@ -149,6 +149,10 @@ HAND_TYPE_COMPLETIONS = [
     "straight from",
     "flush",
     "royal flush",
+    "bluff",
+    "quit",
+    "clear",
+    "help"
 ]
 
 if readline:
@@ -179,7 +183,7 @@ if readline:
         prefix = buf.lower()
 
         if state == 0:
-            _hand_completer.matches = [p for p in HAND_TYPE_COMPLETIONS if p.startswith(prefix)]  # type: ignore
+            _hand_completer.matches = [p for p in KEYWORDS_COMPLETIONS if p.startswith(prefix.lower())]  # type: ignore
 
         try:
             return _hand_completer.matches[state]  # type: ignore
