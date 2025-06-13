@@ -152,6 +152,25 @@ HAND_TYPE_COMPLETIONS = [
 ]
 
 if readline:
+    # Detect if the underlying readline is the BSD libedit shim (macOS default)
+    _using_libedit = False
+    try:
+        _using_libedit = 'libedit' in readline.__doc__ or 'libedit' in getattr(readline, '__file__', '')
+    except Exception:
+        pass
+
+    # Configure TAB completion for the detected backend without issuing incompatible commands
+    if _using_libedit:
+        readline.parse_and_bind('bind ^I rl_complete')
+    else:  # GNU readline
+        readline.parse_and_bind('tab: complete')
+
+    # Ensure normal letters like 'b' remain self-insert to avoid accidental beeps
+    if _using_libedit:
+        readline.parse_and_bind('bind b self-insert')
+    else:
+        readline.parse_and_bind('"b": self-insert')
+
     def _hand_completer(text: str, state: int):
         """Return Tab-completion candidates for poker hand phrases."""
         buf = readline.get_line_buffer().lstrip()
@@ -166,13 +185,6 @@ if readline:
             return _hand_completer.matches[state]  # type: ignore
         except (AttributeError, IndexError):
             return None
-
-    # Bind Tab to completion for both GNU readline and libedit
-    for seq in ("tab: complete", "bind ^I rl_complete"):
-        try:
-            readline.parse_and_bind(seq)
-        except Exception:
-            pass
 
     readline.set_completer(_hand_completer)
 
