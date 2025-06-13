@@ -140,6 +140,42 @@ def translate_shorthand_to_spec(cmd: str) -> Optional[str]:
 
     return None
 
+# ------- Hand-call Tab-completion (module level) -------
+HAND_TYPE_COMPLETIONS = [
+    "highcard",
+    "pair of",
+    "two pairs",
+    "three of a kind",
+    "straight from",
+    "flush",
+    "royal flush",
+]
+
+if readline:
+    def _hand_completer(text: str, state: int):
+        """Return Tab-completion candidates for poker hand phrases."""
+        buf = readline.get_line_buffer().lstrip()
+        if buf.lower().startswith("call "):
+            buf = buf[5:]
+        prefix = buf.lower()
+
+        if state == 0:
+            _hand_completer.matches = [p for p in HAND_TYPE_COMPLETIONS if p.startswith(prefix)]  # type: ignore
+
+        try:
+            return _hand_completer.matches[state]  # type: ignore
+        except (AttributeError, IndexError):
+            return None
+
+    # Bind Tab to completion for both GNU readline and libedit
+    for seq in ("tab: complete", "bind ^I rl_complete"):
+        try:
+            readline.parse_and_bind(seq)
+        except Exception:
+            pass
+
+    readline.set_completer(_hand_completer)
+
 class GameClient:
     """Terminal client for the card game"""
     
@@ -586,6 +622,14 @@ class GameClient:
             await self.disconnect()
             return
         
+        if cmd == "clear":
+            # Clear the console and force a full UI redraw
+            console.clear()
+            # Reset last render signature so display_game_state doesn't skip redraw
+            self._last_render_signature = None
+            self.display_game_state()
+            return
+        
         if cmd == "start" and self.is_host:
             await self.send_message(MessageType.GAME_START, {"user_id": self.user_id})
         
@@ -617,7 +661,7 @@ class GameClient:
         elif cmd == "help":
             self.show_help()
         
-        elif cmd != "clear":
+        else:
             # Try to interpret as shorthand poker hand specification
             spec = translate_shorthand_to_spec(command)
             if spec is None:
@@ -712,7 +756,6 @@ class GameClient:
     def _print_prompt(self):
         """Disabled: UI no longer shows command prompt text."""
         return
-
 
 async def main():
     """Main client entry point"""
