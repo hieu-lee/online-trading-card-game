@@ -340,8 +340,12 @@ class HandComparator:
     @staticmethod
     def _compare_two_pairs(hand1: PokerHand, hand2: PokerHand) -> int:
         """Compare two pairs hands"""
-        t1 = (hand1.primary_rank, hand1.secondary_rank)
-        t2 = (hand2.primary_rank, hand2.secondary_rank)
+        min1 = min(hand1.primary_rank, hand1.secondary_rank)
+        min2 = min(hand2.primary_rank, hand2.secondary_rank)
+        max1 = max(hand1.primary_rank, hand1.secondary_rank)
+        max2 = max(hand2.primary_rank, hand2.secondary_rank)
+        t1 = (min1, max1)
+        t2 = (min2, max2)
 
         if t1 > t2:
             return 1
