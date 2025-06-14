@@ -10,42 +10,47 @@ export function useWebSocket(url: string) {
   const messageHandlersRef = useRef<Map<string, (data: any) => void>>(new Map())
 
   const connect = useCallback(() => {
-    try {
-      const ws = new WebSocket(url)
+    return new Promise((resolve, reject) => {
+      try {
+        const ws = new WebSocket(url)
 
-      ws.onopen = () => {
-        setIsConnected(true)
-        setConnectionError(null)
-        console.log("Connected to WebSocket server")
-      }
-
-      ws.onclose = () => {
-        setIsConnected(false)
-        console.log("Disconnected from WebSocket server")
-      }
-
-      ws.onerror = (error) => {
-        setConnectionError("Connection failed")
-        console.error("WebSocket error:", error)
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const message: GameMessage = JSON.parse(event.data)
-          const handler = messageHandlersRef.current.get(message.type)
-          if (handler) {
-            handler(message.data)
-          }
-        } catch (error) {
-          console.error("Error parsing message:", error)
+        ws.onopen = () => {
+          setIsConnected(true)
+          setConnectionError(null)
+          console.log("Connected to WebSocket server")
+          resolve(ws) // Resolve when connection is established
         }
-      }
 
-      wsRef.current = ws
-    } catch (error) {
-      setConnectionError("Failed to create WebSocket connection")
-      console.error("WebSocket connection error:", error)
-    }
+        ws.onclose = () => {
+          setIsConnected(false)
+          console.log("Disconnected from WebSocket server")
+        }
+
+        ws.onerror = (error) => {
+          setConnectionError("Connection failed")
+          console.error("WebSocket error:", error)
+          reject(error) // Reject on error
+        }
+
+        ws.onmessage = (event) => {
+          try {
+            const message: GameMessage = JSON.parse(event.data)
+            const handler = messageHandlersRef.current.get(message.type)
+            if (handler) {
+              handler(message.data)
+            }
+          } catch (error) {
+            console.error("Error parsing message:", error)
+          }
+        }
+
+        wsRef.current = ws
+      } catch (error) {
+        setConnectionError("Failed to create WebSocket connection")
+        console.error("WebSocket connection error:", error)
+        reject(error)
+      }
+    })
   }, [url])
 
   const disconnect = useCallback(() => {

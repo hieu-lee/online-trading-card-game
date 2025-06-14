@@ -5,5 +5,5 @@ procs:
   front:
     shell: "pnpm dev"
     cwd: "./front"
-
-
+  ngrok:
+    shell: "ngrok http --url=tough-apt-stag.ngrok-free.app 8765"

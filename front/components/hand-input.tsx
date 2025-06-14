@@ -30,7 +30,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
   if (!isYourTurn) {
     return (
       <Card className="bg-slate-800 border-green-400/20">
-        <CardContent className="pt-6">
+        <CardContent>
           <div className="text-center text-gray-400">
             {currentCall ? `Current call: ${currentCall}` : "Waiting for your turn..."}
           </div>
@@ -41,7 +41,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
 
   return (
     <Card className="bg-slate-800 border-green-400/20">
-      <CardContent className="pt-6">
+      <CardContent >
         <div className="space-y-4">
           <div className="text-green-400 font-semibold">Your Turn!</div>
           {currentCall && <div className="text-sm text-gray-300">Current call: {currentCall}</div>}

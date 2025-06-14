@@ -14,8 +14,10 @@ import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
-const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
-console.log(WS_URL)
+// const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
+const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+// const WS_URL = "ws://0.0.0.0:8765"
+// const WS_URL = "https://tough-apt-stag.ngrok-free.app"
 
 export default function Component() {
   // Connection state
@@ -152,18 +154,14 @@ export default function Component() {
   }, [addMessageHandler, userId, disconnect, addMessage])
 
   const handleUsernameSubmit = useCallback(
-    (usernameInput: string) => {
+    async (usernameInput: string) => {
       setIsConnecting(true)
       setUsernameError("")
 
       if (!isConnected) {
-        connect()
+        await connect()
       }
-
-      // Wait a moment for connection, then send join message
-      setTimeout(() => {
-        sendMessage("user_join" as MessageType, { username: usernameInput })
-      }, 100)
+      sendMessage("user_join" as MessageType, { username: usernameInput })
     },
     [isConnected, connect, sendMessage],
   )
@@ -222,7 +220,7 @@ export default function Component() {
 
         {/* User Status */}
         <CardUi className="bg-slate-800 border-green-400/20">
-          <CardContent className="pt-6">
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-green-300">Username:</span>
@@ -261,7 +259,7 @@ export default function Component() {
         {/* Your Cards */}
         {yourCards.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent className="pt-6">
+            <CardContent>
               <CardsDisplay cards={yourCards} title="Your Cards" />
             </CardContent>
           </CardUi>
@@ -369,7 +367,7 @@ export default function Component() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Online Users */}
           <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent className="pt-6">
+            <CardContent>
               <div className="flex items-center gap-2 text-sm">
                 <Users className="h-4 w-4 text-green-400" />
                 <span className="text-green-300">Online users ({onlineUsers.length}):</span>
@@ -380,15 +378,15 @@ export default function Component() {
 
           {/* Game Status */}
           <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent className="pt-6">
+            <CardContent>
               <div className="space-y-2 text-sm">
-                {gameState?.round_number && gameState.round_number > 0 && (
+                {gameState?.round_number !== undefined && (
                   <div>
                     <span className="text-green-300">Round:</span>
                     <span className="text-white ml-2">{gameState.round_number}</span>
                   </div>
                 )}
-                {gameState?.waiting_players_count && gameState.waiting_players_count > 0 && (
+                {gameState?.waiting_players_count !== undefined && (
                   <div>
                     <span className="text-green-300">Waiting players:</span>
                     <span className="text-white ml-2">{gameState.waiting_players_count}</span>
@@ -412,7 +410,7 @@ export default function Component() {
               <CardTitle className="text-green-400 text-lg">Recent Messages</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1 text-sm max-h-32 overflow-y-auto">
+              <div className="text-sm max-h-64 overflow-y-auto">
                 {messages.map((message, index) => (
                   <div key={index} className="text-gray-300">
                     {message}
