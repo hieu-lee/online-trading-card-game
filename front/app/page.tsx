@@ -15,7 +15,7 @@ import { HandInput } from "@/components/hand-input"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
 // const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
-const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
 // const WS_URL = "ws://0.0.0.0:8765"
 // const WS_URL = "https://tough-apt-stag.ngrok-free.app"
 
