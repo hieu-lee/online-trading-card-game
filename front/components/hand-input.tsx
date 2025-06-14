@@ -4,6 +4,12 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 interface HandInputProps {
   onCallHand: (handSpec: string) => void
@@ -61,11 +67,26 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
               Call Bluff
             </Button>
           )}
-          <div className="text-xs text-gray-400">
-            Examples: &ldquo;pair of aces&rdquo;, &ldquo;3 kings&rdquo;, &ldquo;straight 10&rdquo;, &ldquo;flush hearts&rdquo;, &ldquo;bluff&rdquo;
-          </div>
+          <Accordion type="single" collapsible className="text-xl text-gray-400">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Available hands ?</AccordionTrigger>
+              <AccordionContent>
+                <div><b>------</b></div>
+                <div><b>High Card</b> &lt;rank&gt;</div>
+                <div><b>Pair of</b> &lt;rank&gt;</div>
+                <div><b>Two Pairs</b> &lt;rank1&gt; and &lt;rank2&gt;</div>
+                <div><b>Three of a Kind </b>&lt;rank&gt;</div>
+                <div><b>Straight from</b> &lt;rank&gt;</div>
+                <div><b>Flush of</b> &lt;suit&gt;: &lt;rank1&gt;,&lt;rank2&gt;,&lt;rank3&gt;,&lt;rank4&gt;,&lt;rank5&gt;</div>
+                <div><b>Full House: 3</b> &lt;rank1&gt; and 2 &lt;rank2&gt;</div>
+                <div><b>Four of a Kind </b>&lt;rank&gt;</div>
+                <div><b>Straight Flush</b> &lt;suit&gt; from &lt;rank&gt;</div>
+                <div><b>Royal Flush</b> &lt;suit&gt;</div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </CardContent>
-    </Card>
+    </Card >
   )
 }
