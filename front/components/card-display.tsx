@@ -39,7 +39,7 @@ export function CardComponent({ card }: CardProps) {
 
   return (
     <div className="inline-block bg-white border-2 border-gray-300 rounded-lg p-1 m-1 shadow-md">
-      <Image src={`/cards/${fileName}`} alt={`${rankName} of ${suitName}`} width={80} height={112} />
+      <Image src={`cards/${fileName}`} alt={`${rankName} of ${suitName}`} width={80} height={112} />
     </div>
   )
 }
