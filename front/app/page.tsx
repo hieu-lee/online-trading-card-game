@@ -14,8 +14,8 @@ import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
-const WS_URL = "ws://0.0.0.0:8765"
-// const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
+console.log(WS_URL)
 
 export default function Component() {
   // Connection state
@@ -41,6 +41,7 @@ export default function Component() {
 
   // Message handlers
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addMessageHandler("user_join", (data: any) => {
       if (data.success) {
         setUserId(data.user_id)
@@ -58,12 +59,15 @@ export default function Component() {
       setIsConnecting(false)
     })
 
-    addMessageHandler("username_error", (data: any) => {
+    addMessageHandler("username_error", (data: { message: string }) => {
       setUsernameError(data.message || "Username error")
       setIsConnecting(false)
     })
 
-    addMessageHandler("game_state_update", (data: any) => {
+    addMessageHandler("game_state_update", (data: {
+      game_state: GameState,
+      online_users: string[]
+    }) => {
       setGameState(data.game_state)
       setOnlineUsers(data.online_users || [])
 
@@ -83,7 +87,7 @@ export default function Component() {
       }
     })
 
-    addMessageHandler("player_update", (data: any) => {
+    addMessageHandler("player_update", (data: { your_cards: Card[] }) => {
       setYourCards(data.your_cards || [])
     })
 
@@ -97,7 +101,7 @@ export default function Component() {
       setYourCards([])
     })
 
-    addMessageHandler("host_changed", (data: any) => {
+    addMessageHandler("host_changed", (data: { new_host: string, host_id: string }) => {
       const newHost = data.new_host || ""
       const hostId = data.host_id
       setIsHost(hostId === userId)
@@ -107,28 +111,28 @@ export default function Component() {
       }
     })
 
-    addMessageHandler("user_kicked", (data: any) => {
+    addMessageHandler("user_kicked", (data: { message: string }) => {
       addMessage(data.message || "You were kicked from the game")
       disconnect()
     })
 
-    addMessageHandler("user_leave", (data: any) => {
+    addMessageHandler("user_leave", (data: { username: string }) => {
       const username = data.username || ""
       addMessage(`${username} has left the game`)
     })
 
-    addMessageHandler("waiting_for_game", (data: any) => {
+    addMessageHandler("waiting_for_game", (data: { message: string }) => {
       addMessage(data.message || "Please wait for the next game")
       setYourCards([])
     })
 
-    addMessageHandler("round_start", (data: any) => {
+    addMessageHandler("round_start", (data: { round_number: number }) => {
       const roundNumber = data.round_number
       setPlayerLastCalls({})
       addMessage(`Round ${roundNumber} has started`)
     })
 
-    addMessageHandler("round_end", (data: any) => {
+    addMessageHandler("round_end", (data: { round_number: number, loser_id: string }) => {
       const roundNumber = data.round_number
       const loser = data.loser_id
       addMessage(`Round ${roundNumber} ended. Player ${loser} lost`)
@@ -138,11 +142,11 @@ export default function Component() {
       addMessage("Revealing cards to all players")
     })
 
-    addMessageHandler("call_bluff", (data: any) => {
+    addMessageHandler("call_bluff", (data: { message: string }) => {
       addMessage(data.message || "Bluff called")
     })
 
-    addMessageHandler("error", (data: any) => {
+    addMessageHandler("error", (data: { message: string }) => {
       addMessage(`Error: ${data.message || "Unknown error"}`)
     })
   }, [addMessageHandler, userId, disconnect, addMessage])
@@ -204,15 +208,10 @@ export default function Component() {
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <CardUi className="bg-slate-800 border-green-400/20">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-green-400 flex items-center justify-center gap-2">
-              <Terminal className="h-6 w-6" />
-              Online Card Game
-            </CardTitle>
-            <div className="border-t border-green-400/20 mt-2"></div>
-          </CardHeader>
-        </CardUi>
+        <div className="text-2xl text-green-400 flex items-center justify-center gap-2">
+          <Terminal className="h-6 w-6" />
+          Online Card Game
+        </div>
 
         {/* Connection Status */}
         {connectionError && (

@@ -1,7 +1,5 @@
 "use client"
-
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,27 +45,24 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
         <div className="space-y-4">
           <div className="text-green-400 font-semibold">Your Turn!</div>
           {currentCall && <div className="text-sm text-gray-300">Current call: {currentCall}</div>}
-
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={handSpec}
               onChange={(e) => setHandSpec(e.target.value)}
-              placeholder="Enter hand (e.g., 'pair of kings', '3 aces', 'straight 10')"
+              placeholder="Enter hand (e.g., &ldquo;pair of kings&rdquo;, &ldquo;3 aces&rdquo;, &ldquo;straight 10&rdquo;)"
               className="bg-slate-700 border-green-400/20 text-white placeholder:text-gray-500"
             />
             <Button type="submit" disabled={!handSpec.trim()} className="bg-blue-600 hover:bg-blue-700">
               Call
             </Button>
           </form>
-
           {currentCall && (
             <Button onClick={handleBluff} variant="destructive" className="w-full">
               Call Bluff
             </Button>
           )}
-
           <div className="text-xs text-gray-400">
-            Examples: "pair of aces", "3 kings", "straight 10", "flush hearts", "bluff"
+            Examples: &ldquo;pair of aces&rdquo;, &ldquo;3 kings&rdquo;, &ldquo;straight 10&rdquo;, &ldquo;flush hearts&rdquo;, &ldquo;bluff&rdquo;
           </div>
         </div>
       </CardContent>
