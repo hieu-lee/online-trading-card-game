@@ -95,6 +95,7 @@ const SUITS = ["hearts", "diamonds", "clubs", "spades"]
 export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: HandInputProps) {
   const [handSpec, setHandSpec] = useState("")
   const [showSuggestions, setShowSuggestions] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [selectedSuggestion, setSelectedSuggestion] = useState(0)
   const [currentCommand, setCurrentCommand] = useState<SlashCommand | null>(null)
@@ -128,10 +129,10 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
 
     const parts = value.split(' ')
     const commandPart = parts[0]
-    
+
     // If we're still typing the command
     if (parts.length === 1) {
-      const matchingCommands = SLASH_COMMANDS.filter(cmd => 
+      const matchingCommands = SLASH_COMMANDS.filter(cmd =>
         cmd.command.startsWith(commandPart.toLowerCase())
       )
       setSuggestions(matchingCommands.map(cmd => ({
@@ -150,22 +151,22 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
         setCurrentCommand(command)
         const currentParamIndex = parts.length - 2 // -1 for command, -1 for 0-based index
         setParameterIndex(currentParamIndex)
-        
+
         if (currentParamIndex < command.parameters.length) {
           const paramType = command.parameters[currentParamIndex]
           const currentParamValue = parts[parts.length - 1] || ''
-          
+
           let paramSuggestions: string[] = []
           if (paramType.includes('rank')) {
-            paramSuggestions = RANKS.filter(rank => 
+            paramSuggestions = RANKS.filter(rank =>
               rank.toLowerCase().startsWith(currentParamValue.toLowerCase())
             )
           } else if (paramType.includes('suit')) {
-            paramSuggestions = SUITS.filter(suit => 
+            paramSuggestions = SUITS.filter(suit =>
               suit.toLowerCase().startsWith(currentParamValue.toLowerCase())
             )
           }
-          
+
           setSuggestions(paramSuggestions.map(param => ({
             type: 'parameter',
             value: param,
@@ -185,6 +186,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
     setSelectedSuggestion(0)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applySuggestion = (suggestion: any) => {
     if (suggestion.type === 'command') {
       const newValue = suggestion.value + ' '
@@ -192,7 +194,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
       setCurrentCommand(suggestion.command)
       setParameterIndex(0)
       setShowSuggestions(false) // Hide suggestions after selecting command
-      
+
       // Show parameter suggestions after a brief delay
       setTimeout(() => {
         updateSuggestions(newValue)
@@ -202,13 +204,13 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
       const parts = handSpec.split(' ')
       parts[parts.length - 1] = suggestion.value
       const newValue = parts.join(' ')
-      
+
       // Check if we need to add space for next parameter
       if (currentCommand && parameterIndex + 1 < currentCommand.parameters.length) {
         const nextValue = newValue + ' '
         setHandSpec(nextValue)
         setShowSuggestions(false) // Hide suggestions after selecting parameter
-        
+
         // Show next parameter suggestions after a brief delay
         setTimeout(() => {
           updateSuggestions(nextValue)
@@ -251,6 +253,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
       }
     } else if (e.key === "Enter" && !showSuggestions) {
       // Handle submit when no suggestions are showing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleSubmit(e as any)
     }
 
@@ -302,7 +305,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
         <div className="space-y-4">
           <div className="text-green-400 font-semibold">Your Turn!</div>
           {currentCall && <div className="text-sm text-gray-300">Current call: {currentCall}</div>}
-          
+
           <div className="relative">
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -313,6 +316,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                   onKeyDown={handleKeyDown}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !showSuggestions && !handSpec.startsWith('/')) {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       handleSubmit(e as any)
                     }
                   }}
@@ -320,7 +324,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                   className="bg-slate-700 border-green-400/20 text-white placeholder:text-gray-500"
                   autoComplete="off"
                 />
-                
+
                 {showSuggestions && suggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-slate-700 border border-green-400/20 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
                     {suggestions.map((suggestion, index) => (
@@ -331,9 +335,8 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                             el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
                           }
                         } : undefined}
-                        className={`px-3 py-2 cursor-pointer border-b border-slate-600 last:border-b-0 ${
-                          index === selectedSuggestion ? 'bg-slate-600' : 'hover:bg-slate-600'
-                        }`}
+                        className={`px-3 py-2 cursor-pointer border-b border-slate-600 last:border-b-0 ${index === selectedSuggestion ? 'bg-slate-600' : 'hover:bg-slate-600'
+                          }`}
                         onClick={() => applySuggestion(suggestion)}
                       >
                         <div className="text-white font-medium">{suggestion.value}</div>
@@ -343,10 +346,11 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                   </div>
                 )}
               </div>
-              
-              <Button 
+
+              <Button
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClick={(e) => handleSubmit(e as any)}
-                disabled={!handSpec.trim() || handSpec.startsWith('/')} 
+                disabled={!handSpec.trim() || handSpec.startsWith('/')}
                 className="bg-blue-500 hover:bg-blue-700"
               >
                 Call
@@ -393,7 +397,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="hands">
               <AccordionTrigger>Manual Hand Entry</AccordionTrigger>
               <AccordionContent>
