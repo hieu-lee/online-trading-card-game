@@ -58,7 +58,7 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
               placeholder="Enter hand (e.g., &ldquo;pair of kings&rdquo;, &ldquo;3 aces&rdquo;, &ldquo;straight 10&rdquo;)"
               className="bg-slate-700 border-green-400/20 text-white placeholder:text-gray-500"
             />
-            <Button type="submit" disabled={!handSpec.trim()} className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" disabled={!handSpec.trim()} className="bg-blue-500 hover:bg-blue-700">
               Call
             </Button>
           </form>
