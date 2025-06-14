@@ -86,7 +86,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     description: "Royal Flush",
     parameters: ["suit"],
     template: "Royal Flush {suit}"
-  }
+  },
 ]
 
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
@@ -95,7 +95,6 @@ const SUITS = ["hearts", "diamonds", "clubs", "spades"]
 export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: HandInputProps) {
   const [handSpec, setHandSpec] = useState("")
   const [showSuggestions, setShowSuggestions] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [suggestions, setSuggestions] = useState<any[]>([])
   const [selectedSuggestion, setSelectedSuggestion] = useState(0)
   const [currentCommand, setCurrentCommand] = useState<SlashCommand | null>(null)
@@ -186,7 +185,6 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
     setSelectedSuggestion(0)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applySuggestion = (suggestion: any) => {
     if (suggestion.type === 'command') {
       const newValue = suggestion.value + ' '
@@ -253,7 +251,6 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
       }
     } else if (e.key === "Enter" && !showSuggestions) {
       // Handle submit when no suggestions are showing
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleSubmit(e as any)
     }
 
@@ -316,7 +313,6 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                   onKeyDown={handleKeyDown}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !showSuggestions && !handSpec.startsWith('/')) {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       handleSubmit(e as any)
                     }
                   }}
@@ -337,7 +333,10 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                         } : undefined}
                         className={`px-3 py-2 cursor-pointer border-b border-slate-600 last:border-b-0 ${index === selectedSuggestion ? 'bg-slate-600' : 'hover:bg-slate-600'
                           }`}
-                        onClick={() => applySuggestion(suggestion)}
+                        onMouseDown={(e) => {
+                          e.preventDefault() // Prevent input blur
+                          applySuggestion(suggestion)
+                        }}
                       >
                         <div className="text-white font-medium">{suggestion.value}</div>
                         <div className="text-gray-400 text-sm">{suggestion.description}</div>
@@ -348,7 +347,6 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
               </div>
 
               <Button
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClick={(e) => handleSubmit(e as any)}
                 disabled={!handSpec.trim() || handSpec.startsWith('/')}
                 className="bg-blue-500 hover:bg-blue-700"
