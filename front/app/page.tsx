@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card as CardUi, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Crown, Users, Terminal, Wifi, WifiOff } from "lucide-react"
+import { Crown, Users, Terminal, Wifi, WifiOff, Club, Diamond, Spade, Heart } from "lucide-react"
 
 import { useWebSocket } from "@/hooks/use-websocket"
 import { UsernameDialog } from "@/components/username-dialog"
@@ -15,10 +15,12 @@ import { HandInput } from "@/components/hand-input"
 import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
-// const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
-const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
-// const WS_URL = "ws://0.0.0.0:8765"
-// const WS_URL = "https://tough-apt-stag.ngrok-free.app"
+// local
+const WS_URL = "ws://0.0.0.0:8765"
+// staging
+// const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+// prod
+// const WS_URL = "wss://online-trading-card-game.onrender.com"
 
 export default function Component() {
   // Connection state
@@ -39,7 +41,7 @@ export default function Component() {
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
   const addMessage = useCallback((message: string) => {
-    setMessages((prev) => [...prev.slice(-9), message])
+    setMessages((prev) => [...prev.slice(-20), message])
   }, [])
 
   // Message handlers
@@ -81,6 +83,9 @@ export default function Component() {
           ...prev,
           [currentCall.player_id]: currentCall.hand,
         }))
+        addMessage(`${data.game_state?.players.find(
+          (p) => p.user_id === currentCall.player_id)?.username
+          } called ${currentCall.hand}`)
       }
 
       // Clear last calls if not in playing phase
@@ -132,6 +137,7 @@ export default function Component() {
     addMessageHandler("round_start", (data: { round_number: number }) => {
       const roundNumber = data.round_number
       setPlayerLastCalls({})
+      addMessage(`---`)
       addMessage(`Round ${roundNumber} has started`)
     })
 
@@ -208,8 +214,11 @@ export default function Component() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-2xl text-green-400 flex items-center justify-center gap-2">
-          <Terminal className="h-6 w-6" />
+          <Club className="h-6 w-6" />
+          <Diamond className="h-6 w-6" />
           Online Card Game
+          <Spade className="h-6 w-6" />
+          <Heart className="h-6 w-6" />
         </div>
 
         {/* Connection Status */}
@@ -402,12 +411,6 @@ export default function Component() {
                     <span className="text-white ml-2">{gameState.waiting_players_count}</span>
                   </div>
                 )}
-                {currentCall && (
-                  <div>
-                    <span className="text-green-300">Current call:</span>
-                    <span className="text-white ml-2">{currentCall}</span>
-                  </div>
-                )}
               </div>
             </CardContent>
           </CardUi>
@@ -416,17 +419,23 @@ export default function Component() {
         {/* Messages */}
         {messages.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
-            <CardHeader>
-              <CardTitle className="text-green-400 text-lg">Recent Messages</CardTitle>
-            </CardHeader>
             <CardContent>
-              <div className="text-sm max-h-64 overflow-y-auto">
-                {messages.map((message, index) => (
-                  <div key={index} className="text-gray-300">
-                    {message}
-                  </div>
-                ))}
-              </div>
+              <Accordion type="single" collapsible>
+                <AccordionItem value="history">
+                  <AccordionTrigger className="text-green-400 text-lg">
+                    Recent Messages
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="text-sm max-h-64 overflow-y-auto">
+                      {messages.map((message, index) => (
+                        <div key={index} className="text-gray-300">
+                          {message}
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </CardContent>
           </CardUi>
         )}

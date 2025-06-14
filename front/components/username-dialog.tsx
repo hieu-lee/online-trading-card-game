@@ -27,7 +27,7 @@ export function UsernameDialog({ isOpen, onSubmit, error, isConnecting }: Userna
 
   return (
     <Dialog open={isOpen}>
-      <DialogContent className="bg-slate-800 border-green-400/20 text-white">
+      <DialogContent className="bg-slate-800 border-green-400/20 text-white [&>button]:hidden">
         <DialogHeader>
           <DialogTitle className="text-green-400 text-center">Join Online Card Game</DialogTitle>
         </DialogHeader>

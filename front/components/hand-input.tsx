@@ -21,7 +21,7 @@ interface HandInputProps {
 
 interface SlashCommand {
   command: string
-  description: string
+  description?: string
   parameters: string[]
   template: string
 }
@@ -169,7 +169,6 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
           setSuggestions(paramSuggestions.map(param => ({
             type: 'parameter',
             value: param,
-            description: `${paramType}: ${param}`,
             paramType
           })))
           setShowSuggestions(paramSuggestions.length > 0)
@@ -339,7 +338,9 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                         }}
                       >
                         <div className="text-white font-medium">{suggestion.value}</div>
-                        <div className="text-gray-400 text-sm">{suggestion.description}</div>
+                        {suggestion.description && (
+                          <div className="text-gray-400 text-sm">{suggestion.description}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -393,6 +394,22 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
                 <div className="mt-2 text-xs text-gray-500">
                   Type / to see available commands, use Tab or Enter to select
                 </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="shortcuts">
+              <AccordionTrigger>Shortcuts</AccordionTrigger>
+              <AccordionContent>
+                <div><b>------</b></div>
+                <ul>
+                  <li><strong>highcard</strong> - for high card hands</li>
+                  <li><strong>2 [rank]</strong> - for pairs (e.g., "2 kings", "2 j", "2 3")</li>
+                  <li><strong>3 [rank]</strong> - for three of a kind (e.g., "3 j", "3 10")</li>
+                  <li><strong>straight [rank]</strong> - for straights starting [rank] (e.g., "straight 10")</li>
+                  <li><strong>2 [rank1] 2 [rank2]</strong> - for two pairs (e.g., "2 3 2 4", "2 k 2 a")</li>
+                  <li><strong>2 [rank1] 3 [rank2]</strong> or <strong>3 [rank1] 2 [rank2]</strong> - for full house (e.g., "2 k 3 aces", "3 j 2 10")</li>
+                  <li><strong>4 [rank]</strong> - for four of a kind (e.g., "4 aces", "4 k", "4 7")</li>
+                </ul>
               </AccordionContent>
             </AccordionItem>
 
