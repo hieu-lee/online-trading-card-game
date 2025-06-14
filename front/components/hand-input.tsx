@@ -10,6 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { translateShorthandToSpec, KEYWORDS_COMPLETIONS } from "@/lib/handSpec"
 
 interface HandInputProps {
   onCallHand: (handSpec: string) => void
@@ -20,17 +21,43 @@ interface HandInputProps {
 
 export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: HandInputProps) {
   const [handSpec, setHandSpec] = useState("")
+  const [tabMatches, setTabMatches] = useState<string[]>([])
+  const [tabIndex, setTabIndex] = useState(0)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (handSpec.trim()) {
-      onCallHand(handSpec.trim())
+    const trimmed = handSpec.trim()
+    if (trimmed) {
+      const spec = translateShorthandToSpec(trimmed) ?? trimmed
+      onCallHand(spec)
       setHandSpec("")
     }
   }
 
   const handleBluff = () => {
     onCallBluff()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault()
+      const prefix = handSpec.trim().toLowerCase()
+      if (!prefix) return
+
+      // If we don't have matches yet or prefix changed, recompute
+      if (tabMatches.length === 0 || !tabMatches[0].startsWith(prefix)) {
+        const matches = KEYWORDS_COMPLETIONS.filter((k) => k.startsWith(prefix))
+        if (matches.length > 0) {
+          setTabMatches(matches)
+          setTabIndex(0)
+          setHandSpec(matches[0])
+        }
+      } else {
+        const nextIndex = (tabIndex + 1) % tabMatches.length
+        setTabIndex(nextIndex)
+        setHandSpec(tabMatches[nextIndex])
+      }
+    }
   }
 
   if (!isYourTurn) {
@@ -54,7 +81,12 @@ export function HandInput({ onCallHand, onCallBluff, isYourTurn, currentCall }: 
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={handSpec}
-              onChange={(e) => setHandSpec(e.target.value)}
+              onChange={(e) => {
+                setHandSpec(e.target.value)
+                setTabMatches([])
+                setTabIndex(0)
+              }}
+              onKeyDown={handleKeyDown}
               placeholder="Enter hand (e.g., &ldquo;pair of kings&rdquo;, &ldquo;3 aces&rdquo;, &ldquo;straight 10&rdquo;)"
               className="bg-slate-700 border-green-400/20 text-white placeholder:text-gray-500"
             />
