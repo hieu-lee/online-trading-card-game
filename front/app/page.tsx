@@ -12,6 +12,7 @@ import { useWebSocket } from "@/hooks/use-websocket"
 import { UsernameDialog } from "@/components/username-dialog"
 import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
+import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
 // const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
@@ -260,7 +261,16 @@ export default function Component() {
         {yourCards.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
             <CardContent>
-              <CardsDisplay cards={yourCards} title="Your Cards" />
+              <Accordion type="single" collapsible>
+                <AccordionItem value="your-cards">
+                  <AccordionTrigger className="text-green-400 text-lg">
+                    Your Cards
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardsDisplay cards={yourCards} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </CardContent>
           </CardUi>
         )}
