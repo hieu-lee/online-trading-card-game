@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { Card } from "../types/game-types"
 
 interface CardProps {
@@ -5,47 +6,40 @@ interface CardProps {
 }
 
 export function CardComponent({ card }: CardProps) {
-  const getSuitSymbol = (suit: string) => {
-    const symbols: Record<string, string> = {
-      "♥": "♥",
-      "♦": "♦",
-      "♣": "♣",
-      "♠": "♠",
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
+  // Convert various suit representations to a canonical lowercase name
+  const getSuitName = (suit: string) => {
+    const map: Record<string, string> = {
+      "♥": "hearts",
+      "♦": "diamonds",
+      "♣": "clubs",
+      "♠": "spades",
+      hearts: "hearts",
+      diamonds: "diamonds",
+      clubs: "clubs",
+      spades: "spades",
     }
-    return symbols[suit] || suit
+    return map[suit] || suit.toLowerCase()
   }
 
-  const getRankDisplay = (rank: number) => {
-    const ranks: Record<number, string> = {
-      2: "2",
-      3: "3",
-      4: "4",
-      5: "5",
-      6: "6",
-      7: "7",
-      8: "8",
-      9: "9",
-      10: "10",
-      11: "J",
-      12: "Q",
-      13: "K",
-      14: "A",
+  // Map numeric rank to filename-friendly string
+  const getRankName = (rank: number) => {
+    const faceRanks: Record<number, string> = {
+      11: "jack",
+      12: "queen",
+      13: "king",
+      14: "ace",
     }
-    return ranks[rank] || rank.toString()
+    return faceRanks[rank] || rank.toString()
   }
 
-  const isRed = card.suit === "♥" || card.suit === "♦" || card.suit === "hearts" || card.suit === "diamonds"
-  const suitSymbol = getSuitSymbol(card.suit)
-  const rankDisplay = getRankDisplay(card.rank)
+  const suitName = getSuitName(card.suit)
+  const rankName = getRankName(card.rank)
+
+  const fileName = `${suitName}_${rankName}.svg`
 
   return (
-    <div className="inline-block bg-white border-2 border-gray-300 rounded-lg p-2 m-1 shadow-md min-w-[60px] text-center">
-      <div className={`text-lg font-bold ${isRed ? "text-red-600" : "text-black"}`}>{rankDisplay}</div>
-      <div className={`text-xl ${isRed ? "text-red-600" : "text-black"}`}>{suitSymbol}</div>
+    <div className="inline-block bg-white border-2 border-gray-300 rounded-lg p-1 m-1 shadow-md">
+      <Image src={`/cards/${fileName}`} alt={`${rankName} of ${suitName}`} width={80} height={112} />
     </div>
   )
 }
