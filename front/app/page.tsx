@@ -304,7 +304,7 @@ export default function Component() {
         {yourCards.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
             <CardContent>
-              <Accordion type="single" collapsible>
+              <Accordion type="single" collapsible defaultValue="your-cards">
                 <AccordionItem value="your-cards">
                   <AccordionTrigger className="text-green-400 text-lg">
                     Your Cards
