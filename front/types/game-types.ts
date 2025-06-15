@@ -7,12 +7,11 @@ export interface Player {
   user_id: string
   username: string
   card_count: number
-  losses: number
   is_eliminated: boolean
 }
 
 export interface GameState {
-  phase: string
+  phase: "waiting" | "playing" | "ended"
   round_number: number
   current_player_id?: string
   current_call?: {

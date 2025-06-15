@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card as CardUi, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Crown, Users, Terminal, Wifi, WifiOff } from "lucide-react"
+import { Crown, Users, Terminal, Wifi, WifiOff, Club, Diamond, Spade, Heart } from "lucide-react"
+import Image from "next/image"
 
 import { useWebSocket } from "@/hooks/use-websocket"
 import { UsernameDialog } from "@/components/username-dialog"
 import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
+import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
 
 // const WS_URL = process.env.CARDGAME_SERVER || "wss://online-trading-card-game-production.up.railway.app"
@@ -34,12 +36,33 @@ export default function Component() {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [messages, setMessages] = useState<string[]>([])
   const [playerLastCalls, setPlayerLastCalls] = useState<Record<string, string>>({})
+  // Previous round hands state for displaying last hand
+  const [previousRoundHands, setPreviousRoundHands] = useState<Record<string, Card[]>>({})
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
   const addMessage = useCallback((message: string) => {
-    setMessages((prev) => [...prev.slice(-9), message])
+    setMessages((prev) => [...prev.slice(-20), message])
   }, [])
+
+  // Helpers to map suit and rank to filename parts
+  const getSuitName = (suit: string) => {
+    const map: Record<string, string> = {
+      "♥": "hearts",
+      "♦": "diamonds",
+      "♣": "clubs",
+      "♠": "spades",
+      hearts: "hearts",
+      diamonds: "diamonds",
+      clubs: "clubs",
+      spades: "spades",
+    }
+    return map[suit] || suit.toLowerCase()
+  }
+  const getRankName = (rank: number) => {
+    const faceRanks: Record<number, string> = { 11: "jack", 12: "queen", 13: "king", 14: "ace" }
+    return faceRanks[rank] || rank.toString()
+  }
 
   // Message handlers
   useEffect(() => {
@@ -80,6 +103,9 @@ export default function Component() {
           ...prev,
           [currentCall.player_id]: currentCall.hand,
         }))
+        addMessage(`${data.game_state?.players.find(
+          (p) => p.user_id === currentCall.player_id)?.username
+          } called ${currentCall.hand}`)
       }
 
       // Clear last calls if not in playing phase
@@ -131,6 +157,7 @@ export default function Component() {
     addMessageHandler("round_start", (data: { round_number: number }) => {
       const roundNumber = data.round_number
       setPlayerLastCalls({})
+      addMessage(`---`)
       addMessage(`Round ${roundNumber} has started`)
     })
 
@@ -144,9 +171,21 @@ export default function Component() {
       addMessage("Revealing cards to all players")
     })
 
-    addMessageHandler("call_bluff", (data: { message: string }) => {
-      addMessage(data.message || "Bluff called")
-    })
+    addMessageHandler(
+      "call_bluff",
+      (data: { message: string; loser_id: string; previous_round_cards?: { user_id: string; cards: Card[] }[] }) => {
+        addMessage(data.message || "Bluff called")
+        if (data.previous_round_cards && data.previous_round_cards.length > 0) {
+          const handsMap = data.previous_round_cards.reduce<Record<string, Card[]>>((acc, curr) => {
+            acc[curr.user_id] = curr.cards
+            return acc
+          }, {})
+          setPreviousRoundHands(handsMap)
+        } else {
+          setPreviousRoundHands({})
+        }
+      }
+    )
 
     addMessageHandler("error", (data: { message: string }) => {
       addMessage(`Error: ${data.message || "Unknown error"}`)
@@ -207,8 +246,11 @@ export default function Component() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-2xl text-green-400 flex items-center justify-center gap-2">
-          <Terminal className="h-6 w-6" />
+          <Club className="h-6 w-6" />
+          <Diamond className="h-6 w-6" />
           Online Card Game
+          <Spade className="h-6 w-6" />
+          <Heart className="h-6 w-6" />
         </div>
 
         {/* Connection Status */}
@@ -260,7 +302,16 @@ export default function Component() {
         {yourCards.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
             <CardContent>
-              <CardsDisplay cards={yourCards} title="Your Cards" />
+              <Accordion type="single" collapsible defaultValue="your-cards">
+                <AccordionItem value="your-cards">
+                  <AccordionTrigger className="text-green-400 text-lg">
+                    Your Cards
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardsDisplay cards={yourCards} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </CardContent>
           </CardUi>
         )}
@@ -284,22 +335,21 @@ export default function Component() {
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow className="border-green-400/20 hover:bg-slate-700/50">
+                  <TableRow className="border-green-400/20 hover:bg-slate-700/50 h-12">
                     <TableHead className="text-green-300">Username</TableHead>
                     <TableHead className="text-green-300">Cards</TableHead>
-                    <TableHead className="text-green-300">Losses</TableHead>
                     <TableHead className="text-green-300">Status</TableHead>
                     <TableHead className="text-green-300">Last Call</TableHead>
+                    <TableHead className="text-green-300">Last Hand</TableHead>
                     <TableHead className="text-green-300">Turn</TableHead>
                     {isHost && <TableHead className="text-green-300">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {gameState.players.map((player: Player) => (
-                    <TableRow key={player.user_id} className="border-green-400/20 hover:bg-slate-700/50">
+                    <TableRow key={player.user_id} className="border-green-400/20 hover:bg-slate-700/50 h-12">
                       <TableCell className="text-white">{player.username}</TableCell>
                       <TableCell className="text-white">{player.card_count}</TableCell>
-                      <TableCell className="text-white">{player.losses}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -313,6 +363,26 @@ export default function Component() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-white text-sm">{playerLastCalls[player.user_id] || "-"}</TableCell>
+                      <TableCell className="text-white p-0">
+                        {previousRoundHands[player.user_id] && (
+                          <div className="flex space-x-1 items-center">
+                            {previousRoundHands[player.user_id].map((card, idx) => {
+                              const suitName = getSuitName(card.suit)
+                              const rankName = getRankName(card.rank)
+                              const fileName = `${suitName}_${rankName}.svg`
+                              return (
+                                <Image
+                                  key={idx}
+                                  src={`cards/${fileName}`}
+                                  alt={`${rankName} of ${suitName}`}
+                                  width={30}
+                                  height={42}
+                                />
+                              )
+                            })}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {gameState?.phase === "playing" && player.user_id === gameState.current_player_id && (
                           <Badge className="bg-yellow-600">Active</Badge>
@@ -392,12 +462,6 @@ export default function Component() {
                     <span className="text-white ml-2">{gameState.waiting_players_count}</span>
                   </div>
                 )}
-                {currentCall && (
-                  <div>
-                    <span className="text-green-300">Current call:</span>
-                    <span className="text-white ml-2">{currentCall}</span>
-                  </div>
-                )}
               </div>
             </CardContent>
           </CardUi>
@@ -406,17 +470,23 @@ export default function Component() {
         {/* Messages */}
         {messages.length > 0 && (
           <CardUi className="bg-slate-800 border-green-400/20">
-            <CardHeader>
-              <CardTitle className="text-green-400 text-lg">Recent Messages</CardTitle>
-            </CardHeader>
             <CardContent>
-              <div className="text-sm max-h-64 overflow-y-auto">
-                {messages.map((message, index) => (
-                  <div key={index} className="text-gray-300">
-                    {message}
-                  </div>
-                ))}
-              </div>
+              <Accordion type="single" collapsible>
+                <AccordionItem value="history">
+                  <AccordionTrigger className="text-green-400 text-lg">
+                    Recent Messages
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="text-sm max-h-64 overflow-y-auto">
+                      {messages.map((message, index) => (
+                        <div key={index} className="text-gray-300">
+                          {message}
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </CardContent>
           </CardUi>
         )}

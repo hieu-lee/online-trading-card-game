@@ -40,6 +40,10 @@ export function translateShorthandToSpec(raw: string): string | null {
     const tokens = s.split(/\s+/)
     if (tokens.length === 0) return null
 
+    // Shorthand for high card
+    if (tokens.length === 1) {
+        return `high card ${normalizeRank(tokens[0])}`
+    }
     // Numeric shorthand patterns like: "2 kings", "3 j", "4 queens"
     if (["2", "3", "4"].includes(tokens[0])) {
         if (tokens.length === 2) {
@@ -130,7 +134,7 @@ export function translateShorthandToSpec(raw: string): string | null {
 }
 
 export const KEYWORDS_COMPLETIONS = [
-    "highcard",
+    "high card",
     "pair of",
     "two pairs",
     "three of a kind",
