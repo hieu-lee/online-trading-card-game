@@ -11,7 +11,7 @@ export interface Player {
 }
 
 export interface GameState {
-  phase: string
+  phase: "waiting" | "playing" | "ended"
   round_number: number
   current_player_id?: string
   current_call?: {
