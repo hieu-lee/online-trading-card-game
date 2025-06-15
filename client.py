@@ -624,6 +624,8 @@ class GameClient:
                     self.player_last_calls.clear()
                 # Clear cached hand when game not in playing phase
                 phase = self.game_state.get("game_state", {}).get("phase", "waiting")
+                current_round_cards_msg = message.data.get("current_round_cards", "")
+                self.add_message(f"current_round_cards: {current_round_cards_msg}")
                 if phase != "playing":
                     self.your_cards = []
                 self.display_game_state()
@@ -686,7 +688,12 @@ class GameClient:
 
             elif message.type == MessageType.CALL_BLUFF:
                 self.add_message(message.data.get("message", "Bluff called"))
-                self.add_message(message.data.get("previous_round_cards", ""))
+                previous_round_cards_message = message.data.get(
+                    "previous_round_cards", ""
+                )
+                self.add_message(
+                    f"previous_round_cards: {previous_round_cards_message}"
+                )
                 self.display_game_state()
 
             elif message.type == MessageType.ERROR:

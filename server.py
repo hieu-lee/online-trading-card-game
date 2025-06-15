@@ -38,6 +38,8 @@ from game_logic import (
     can_start_game,
     get_player_cards,
     get_current_active_players_hands,
+    get_spectator_ids,
+    get_active_player_ids,
 )
 from card_system import PokerHand, HandType, Suit, Rank
 from card_system import HandParser
@@ -163,8 +165,38 @@ class GameServer:
                 "online_users": [user.username for user in get_online_users()],
             },
         )
-
-        await self.broadcast_message(state_message)
+        current_round_cards = get_current_active_players_hands()
+        if current_round_cards:
+            current_round_cards_data = [
+                {
+                    "user_id": pid,
+                    "cards": [
+                        {"suit": card.suit.value, "rank": card.rank.value}
+                        for card in cards
+                    ],
+                }
+                for pid, cards in current_round_cards.items()
+            ]
+            state_message_for_spectators = create_message(
+                MessageType.GAME_STATE_UPDATE,
+                {
+                    "game_state": game_state,
+                    "host": host.username if host else None,
+                    "online_users": [user.username for user in get_online_users()],
+                    "current_round_cards": current_round_cards_data,
+                },
+            )
+            spectator_ids = get_spectator_ids()
+            for spectator_id in spectator_ids:
+                await self.send_message_to_user(
+                    spectator_id, state_message_for_spectators
+                )
+            active_player_ids = get_active_player_ids()
+            for player_id in active_player_ids:
+                if player_id in self.user_connections:
+                    await self.send_message_to_user(player_id, state_message)
+        else:
+            await self.broadcast_message(state_message)
 
         # Also send waiting list details privately to host
         await self._send_waiting_list_to_host()

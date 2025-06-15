@@ -154,7 +154,27 @@ class Game:
 
     def get_active_players(self) -> List[Player]:
         """Get all non-eliminated players"""
-        return [p for p in self.players.values() if not p.is_eliminated]
+        return (
+            [
+                p
+                for p in self.players.values()
+                if not p.is_eliminated and p.user.id not in self.waiting_players
+            ]
+            if self.phase == GamePhase.PLAYING
+            else []
+        )
+
+    def get_spectator_ids(self) -> List[str]:
+        """Get IDs of players who are spectating (waiting to join)"""
+        if self.phase != GamePhase.PLAYING:
+            return []
+        result = [
+            user_id for user_id in self.waiting_players if user_id not in self.players
+        ]
+        result.extend(
+            player.user.id for player in self.players.values() if player.is_eliminated
+        )
+        return result
 
     def get_player(self, user_id: str) -> Optional[Player]:
         """Get player by user ID"""
@@ -461,6 +481,16 @@ def make_hand_call(user_id: str, hand: PokerHand) -> Tuple[bool, str]:
 def call_bluff(user_id: str) -> Tuple[bool, str, Optional[str]]:
     """Call bluff"""
     return game_instance.call_bluff(user_id)
+
+
+def get_active_player_ids() -> List[str]:
+    """Get IDs of active players"""
+    return [player.user.id for player in game_instance.get_active_players()]
+
+
+def get_spectator_ids() -> List[str]:
+    """Get IDs of players who are spectating"""
+    return game_instance.get_spectator_ids()
 
 
 def get_current_active_players_hands() -> Dict[str, List[Card]]:
