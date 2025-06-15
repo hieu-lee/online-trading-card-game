@@ -40,6 +40,8 @@ export default function Component() {
   const [playerLastCalls, setPlayerLastCalls] = useState<Record<string, string>>({})
   // Previous round hands state for displaying last hand
   const [previousRoundHands, setPreviousRoundHands] = useState<Record<string, Card[]>>({})
+  const [currentRoundHands, setCurrentRoundHands] = useState<Record<string, Card[]>>({})
+  const [isSpectator, setIsSpectator] = useState(false)
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
@@ -156,11 +158,31 @@ export default function Component() {
       setYourCards([])
     })
 
-    addMessageHandler("round_start", (data: { round_number: number }) => {
+    addMessageHandler("round_start", (
+      data: {
+        round_number: number,
+        current_round_cards?: {
+          user_id: string;
+          cards: Card[]
+        }[]
+      }
+    ) => {
+      console.log("Round start data:", data)
       const roundNumber = data.round_number
-      setPlayerLastCalls({})
       addMessage(`---`)
       addMessage(`Round ${roundNumber} has started`)
+      if (data.current_round_cards) {
+        setIsSpectator(true)
+        // Transform array to Record<string, Card[]>
+        const handsRecord = data.current_round_cards.reduce((acc, player) => {
+          acc[player.user_id] = player.cards
+          return acc
+        }, {} as Record<string, Card[]>)
+        setIsSpectator(false)
+        setCurrentRoundHands(handsRecord)
+        return
+      }
+      setPlayerLastCalls({})
     })
 
     addMessageHandler("round_end", (data: { round_number: number, loser_id: string }) => {
@@ -343,6 +365,7 @@ export default function Component() {
                     <TableHead className="text-green-300">Status</TableHead>
                     <TableHead className="text-green-300">Last Call</TableHead>
                     <TableHead className="text-green-300">Last Hand</TableHead>
+                    <TableHead className="text-green-300">{isSpectator ? "Current Hand" : "Last Hand"}</TableHead>
                     <TableHead className="text-green-300">Turn</TableHead>
                     {isHost && <TableHead className="text-green-300">Actions</TableHead>}
                   </TableRow>
@@ -366,24 +389,27 @@ export default function Component() {
                       </TableCell>
                       <TableCell className="text-white text-sm">{playerLastCalls[player.user_id] || "-"}</TableCell>
                       <TableCell className="text-white p-0">
-                        {previousRoundHands[player.user_id] && (
-                          <div className="flex space-x-1 items-center">
-                            {previousRoundHands[player.user_id].map((card, idx) => {
-                              const suitName = getSuitName(card.suit)
-                              const rankName = getRankName(card.rank)
-                              const fileName = `${suitName}_${rankName}.svg`
-                              return (
-                                <Image
-                                  key={idx}
-                                  src={`cards/${fileName}`}
-                                  alt={`${rankName} of ${suitName}`}
-                                  width={30}
-                                  height={42}
-                                />
-                              )
-                            })}
-                          </div>
-                        )}
+                        {(() => {
+                          const handsToShow = isSpectator ? currentRoundHands[player.user_id] : previousRoundHands[player.user_id]
+                          return handsToShow && (
+                            <div className="flex space-x-1 items-center">
+                              {handsToShow.map((card, idx) => {
+                                const suitName = getSuitName(card.suit)
+                                const rankName = getRankName(card.rank)
+                                const fileName = `${suitName}_${rankName}.svg`
+                                return (
+                                  <Image
+                                    key={idx}
+                                    src={`cards/${fileName}`}
+                                    alt={`${rankName} of ${suitName}`}
+                                    width={30}
+                                    height={42}
+                                  />
+                                )
+                              })}
+                            </div>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         {gameState?.phase === "playing" && player.user_id === gameState.current_player_id && (
@@ -426,7 +452,7 @@ export default function Component() {
                 <Button
                   onClick={handleRestartGame}
                   variant="outline"
-                  className="border-yellow-400/50 text-yellow-400 hover:bg-yellow-400/10"
+                  className="border-yellow-400 text-yellow-400 bg-slate-700 hover:bg-yellow-400"
                 >
                   Restart Game
                 </Button>
