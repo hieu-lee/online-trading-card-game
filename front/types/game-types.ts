@@ -7,7 +7,6 @@ export interface Player {
   user_id: string
   username: string
   card_count: number
-  losses: number
   is_eliminated: boolean
 }
 
