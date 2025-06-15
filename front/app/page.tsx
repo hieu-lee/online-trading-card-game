@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card as CardUi, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Crown, Users, Terminal, Wifi, WifiOff, Club, Diamond, Spade, Heart } from "lucide-react"
+import { Crown, Users, Wifi, WifiOff, Club, Diamond, Spade, Heart } from "lucide-react"
 import Image from "next/image"
 
 import { useWebSocket } from "@/hooks/use-websocket"
@@ -15,11 +15,12 @@ import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
 import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
 import type { GameState, Player, Card, MessageType } from "@/types/game-types"
+import { SpectatorControlDialog } from "@/components/spectator-control-dialog"
 
 // local
-// const WS_URL = "ws://localhost:8765"
+const WS_URL = "ws://localhost:8765"
 // staging
-const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+// const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
 // prod
 // const WS_URL = "wss://online-trading-card-game.onrender.com"
 
@@ -426,10 +427,13 @@ export default function Component() {
                 <Button
                   onClick={handleRestartGame}
                   variant="outline"
-                  className="border-yellow-400/50 text-yellow-400 hover:bg-yellow-400/10"
+                  className="border-yellow-400 text-yellow-400 bg-slate-700 hover:bg-yellow-400"
                 >
                   Restart Game
                 </Button>
+                <SpectatorControlDialog
+                  players={gameState?.players || []}
+                />
               </div>
             </CardContent>
           </CardUi>
