@@ -163,8 +163,8 @@ export function PlayersTable({
                   </div>
                 )}
 
-                {/* Last hand when no current hand (only if not eliminated) */}
-                {!isEliminated && !showCurrent && lastHand && lastHand.length > 0 && (
+                {/* Last hand when no current hand (only if not eliminated and not self) */}
+                {!isEliminated && !isSelf && !showCurrent && lastHand && lastHand.length > 0 && (
                   <div className="flex mt-1">
                     {lastHand.map((card, idx) => {
                       const suitName = getSuitName(card.suit)
