@@ -40,6 +40,8 @@ export default function Component() {
   const [playerLastCalls, setPlayerLastCalls] = useState<Record<string, string>>({})
   // Previous round hands state for displaying last hand
   const [previousRoundHands, setPreviousRoundHands] = useState<Record<string, Card[]>>({})
+  // Current round hands state for displaying during current round (if provided by backend)
+  const [currentRoundHands, setCurrentRoundHands] = useState<Record<string, Card[]>>({})
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
@@ -93,10 +95,22 @@ export default function Component() {
 
     addMessageHandler("game_state_update", (data: {
       game_state: GameState,
-      online_users: string[]
+      online_users: string[],
+      current_round_cards?: { user_id: string; cards: Card[] }[]
     }) => {
       setGameState(data.game_state)
       setOnlineUsers(data.online_users || [])
+
+      // Handle current round hands (for display in table)
+      if (data.current_round_cards && data.current_round_cards.length > 0) {
+        const handsMap = data.current_round_cards.reduce<Record<string, Card[]>>((acc, curr) => {
+          acc[curr.user_id] = curr.cards
+          return acc
+        }, {})
+        setCurrentRoundHands(handsMap)
+      } else {
+        setCurrentRoundHands({})
+      }
 
       // Update player last calls
       const currentCall = data.game_state?.current_call
@@ -114,11 +128,14 @@ export default function Component() {
       if (data.game_state?.phase !== "playing") {
         setPlayerLastCalls({})
         setYourCards([])
+        setCurrentRoundHands({}) // clear current round hands when not playing
       }
     })
 
-    addMessageHandler("player_update", (data: { your_cards: Card[] }) => {
-      setYourCards(data.your_cards || [])
+    addMessageHandler("player_update", (data: { your_cards?: Card[] }) => {
+      if (data.your_cards !== undefined) {
+        setYourCards(data.your_cards)
+      }
     })
 
     addMessageHandler("game_start", () => {
@@ -167,6 +184,7 @@ export default function Component() {
       const roundNumber = data.round_number
       const loser = data.loser_id
       addMessage(`Round ${roundNumber} ended. Player ${loser} lost`)
+      setYourCards([])
     })
 
     addMessageHandler("show_cards", () => {
@@ -342,7 +360,9 @@ export default function Component() {
                     <TableHead className="text-green-300">Cards</TableHead>
                     <TableHead className="text-green-300">Status</TableHead>
                     <TableHead className="text-green-300">Last Call</TableHead>
-                    <TableHead className="text-green-300">Last Hand</TableHead>
+                    <TableHead className="text-green-300">
+                      {Object.keys(currentRoundHands).length > 0 ? "Current Hand" : "Last Hand"}
+                    </TableHead>
                     <TableHead className="text-green-300">Turn</TableHead>
                     {isHost && <TableHead className="text-green-300">Actions</TableHead>}
                   </TableRow>
@@ -366,23 +386,44 @@ export default function Component() {
                       </TableCell>
                       <TableCell className="text-white text-sm">{playerLastCalls[player.user_id] || "-"}</TableCell>
                       <TableCell className="text-white p-0">
-                        {previousRoundHands[player.user_id] && (
-                          <div className="flex space-x-1 items-center">
-                            {previousRoundHands[player.user_id].map((card, idx) => {
-                              const suitName = getSuitName(card.suit)
-                              const rankName = getRankName(card.rank)
-                              const fileName = `${suitName}_${rankName}.svg`
-                              return (
-                                <Image
-                                  key={idx}
-                                  src={`cards/${fileName}`}
-                                  alt={`${rankName} of ${suitName}`}
-                                  width={30}
-                                  height={42}
-                                />
-                              )
-                            })}
-                          </div>
+                        {Object.keys(currentRoundHands).length > 0 ? (
+                          currentRoundHands[player.user_id] && (
+                            <div className="flex space-x-1 items-center">
+                              {currentRoundHands[player.user_id]?.map((card, idx) => {
+                                const suitName = getSuitName(card.suit)
+                                const rankName = getRankName(card.rank)
+                                const fileName = `${suitName}_${rankName}.svg`
+                                return (
+                                  <Image
+                                    key={idx}
+                                    src={`cards/${fileName}`}
+                                    alt={`${rankName} of ${suitName}`}
+                                    width={30}
+                                    height={42}
+                                  />
+                                )
+                              })}
+                            </div>
+                          )
+                        ) : (
+                          previousRoundHands[player.user_id] && (
+                            <div className="flex space-x-1 items-center">
+                              {previousRoundHands[player.user_id]?.map((card, idx) => {
+                                const suitName = getSuitName(card.suit)
+                                const rankName = getRankName(card.rank)
+                                const fileName = `${suitName}_${rankName}.svg`
+                                return (
+                                  <Image
+                                    key={idx}
+                                    src={`cards/${fileName}`}
+                                    alt={`${rankName} of ${suitName}`}
+                                    width={30}
+                                    height={42}
+                                  />
+                                )
+                              })}
+                            </div>
+                          )
                         )}
                       </TableCell>
                       <TableCell>
