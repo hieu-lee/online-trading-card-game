@@ -14,7 +14,7 @@ import { UsernameDialog } from "@/components/username-dialog"
 import { CardsDisplay } from "@/components/card-display"
 import { HandInput } from "@/components/hand-input"
 import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
-import type { GameState, Player, Card, MessageType } from "@/types/game-types"
+import { MessageType, type GameState, type Player, type Card } from "@/types/game-types"
 
 // local
 // const WS_URL = "ws://localhost:8765"
@@ -71,7 +71,7 @@ export default function Component() {
   // Message handlers
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addMessageHandler("user_join", (data: any) => {
+    addMessageHandler(MessageType.USER_JOIN, (data: any) => {
       if (data.success) {
         setUserId(data.user_id)
         setUsername(data.username)
@@ -88,12 +88,12 @@ export default function Component() {
       setIsConnecting(false)
     })
 
-    addMessageHandler("username_error", (data: { message: string }) => {
+    addMessageHandler(MessageType.USERNAME_ERROR, (data: { message: string }) => {
       setUsernameError(data.message || "Username error")
       setIsConnecting(false)
     })
 
-    addMessageHandler("game_state_update", (data: {
+    addMessageHandler(MessageType.GAME_STATE_UPDATE, (data: {
       game_state: GameState,
       online_users: string[],
       current_round_cards?: { user_id: string; cards: Card[] }[]
@@ -132,23 +132,23 @@ export default function Component() {
       }
     })
 
-    addMessageHandler("player_update", (data: { your_cards?: Card[] }) => {
+    addMessageHandler(MessageType.PLAYER_UPDATE, (data: { your_cards?: Card[] }) => {
       if (data.your_cards !== undefined) {
         setYourCards(data.your_cards)
       }
     })
 
-    addMessageHandler("game_start", () => {
+    addMessageHandler(MessageType.GAME_START, () => {
       addMessage("Game started!")
     })
 
-    addMessageHandler("game_restart", () => {
+    addMessageHandler(MessageType.GAME_RESTART, () => {
       addMessage("Game restarted!")
       setPlayerLastCalls({})
       setYourCards([])
     })
 
-    addMessageHandler("host_changed", (data: { new_host: string, host_id: string }) => {
+    addMessageHandler(MessageType.HOST_CHANGED, (data: { new_host: string, host_id: string }) => {
       const newHost = data.new_host || ""
       const hostId = data.host_id
       setIsHost(hostId === userId)
@@ -158,41 +158,41 @@ export default function Component() {
       }
     })
 
-    addMessageHandler("user_kicked", (data: { message: string }) => {
+    addMessageHandler(MessageType.USER_KICKED, (data: { message: string }) => {
       addMessage(data.message || "You were kicked from the game")
       disconnect()
     })
 
-    addMessageHandler("user_leave", (data: { username: string }) => {
+    addMessageHandler(MessageType.USER_LEAVE, (data: { username: string }) => {
       const username = data.username || ""
       addMessage(`${username} has left the game`)
     })
 
-    addMessageHandler("waiting_for_game", (data: { message: string }) => {
+    addMessageHandler(MessageType.WAITING_FOR_GAME, (data: { message: string }) => {
       addMessage(data.message || "Please wait for the next game")
       setYourCards([])
     })
 
-    addMessageHandler("round_start", (data: { round_number: number }) => {
+    addMessageHandler(MessageType.ROUND_START, (data: { round_number: number }) => {
       const roundNumber = data.round_number
       setPlayerLastCalls({})
       addMessage(`---`)
       addMessage(`Round ${roundNumber} has started`)
     })
 
-    addMessageHandler("round_end", (data: { round_number: number, loser_id: string }) => {
+    addMessageHandler(MessageType.ROUND_END, (data: { round_number: number, loser_id: string }) => {
       const roundNumber = data.round_number
       const loser = data.loser_id
       addMessage(`Round ${roundNumber} ended. Player ${loser} lost`)
       setYourCards([])
     })
 
-    addMessageHandler("show_cards", () => {
+    addMessageHandler(MessageType.SHOW_CARDS, () => {
       addMessage("Revealing cards to all players")
     })
 
     addMessageHandler(
-      "call_bluff",
+      MessageType.CALL_BLUFF,
       (data: { message: string; loser_id: string; previous_round_cards?: { user_id: string; cards: Card[] }[] }) => {
         addMessage(data.message || "Bluff called")
         if (data.previous_round_cards && data.previous_round_cards.length > 0) {
@@ -207,7 +207,7 @@ export default function Component() {
       }
     )
 
-    addMessageHandler("error", (data: { message: string }) => {
+    addMessageHandler(MessageType.ERROR, (data: { message: string }) => {
       addMessage(`Error: ${data.message || "Unknown error"}`)
     })
   }, [addMessageHandler, userId, disconnect, addMessage])
@@ -220,35 +220,35 @@ export default function Component() {
       if (!isConnected) {
         await connect()
       }
-      sendMessage("user_join" as MessageType, { username: usernameInput })
+      sendMessage(MessageType.USER_JOIN, { username: usernameInput })
     },
     [isConnected, connect, sendMessage],
   )
 
   const handleStartGame = () => {
-    sendMessage("game_start" as MessageType, { user_id: userId })
+    sendMessage(MessageType.GAME_START, { user_id: userId })
   }
 
   const handleRestartGame = () => {
-    sendMessage("game_restart" as MessageType, { user_id: userId })
+    sendMessage(MessageType.GAME_RESTART, { user_id: userId })
   }
 
   const handleKickUser = (targetUsername: string) => {
-    sendMessage("kick_user" as MessageType, {
+    sendMessage(MessageType.KICK_USER, {
       host_id: userId,
       target_username: targetUsername,
     })
   }
 
   const handleCallHand = (handSpec: string) => {
-    sendMessage("call_hand" as MessageType, {
+    sendMessage(MessageType.CALL_HAND, {
       user_id: userId,
       hand_spec: handSpec,
     })
   }
 
   const handleCallBluff = () => {
-    sendMessage("call_bluff" as MessageType, { user_id: userId })
+    sendMessage(MessageType.CALL_BLUFF, { user_id: userId })
   }
 
   const isYourTurn = gameState?.phase === "playing" && gameState?.current_player_id === userId
