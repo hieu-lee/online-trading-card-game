@@ -73,13 +73,13 @@ export function PlayersTable({
     idx: number,
   ) => {
     const sizeMap = {
-      large: "w-16 h-24 sm:w-20 sm:h-28",
-      small: "w-10 h-14 sm:w-12 sm:h-16",
+      large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
+      small: "w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16",
     } as const
     const cls = sizeMap[variant]
     const overlapMap = {
-      large: "-ml-8", // approx half of w-16 (4rem)
-      small: "-ml-5", // approx half of w-10 (2.5rem)
+      large: "-ml-6 sm:-ml-8 md:-ml-10",
+      small: "-ml-4 sm:-ml-5 md:-ml-6",
     } as const
     const overlap = idx === 0 ? "" : overlapMap[variant]
     return (
