@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -58,4 +56,4 @@ export function UsernameDialog({ isOpen, onSubmit, error, isConnecting }: Userna
       </DialogContent>
     </Dialog>
   )
-}
+} 

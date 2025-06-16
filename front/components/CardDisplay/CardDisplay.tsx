@@ -1,12 +1,11 @@
 import Image from "next/image"
-import type { Card } from "../types/game-types"
+import type { Card } from "@/types/game-types"
 
 interface CardProps {
   card: Card
 }
 
-export function CardComponent({ card }: CardProps) {
-  // Convert various suit representations to a canonical lowercase name
+function CardComponent({ card }: CardProps) {
   const getSuitName = (suit: string) => {
     const map: Record<string, string> = {
       "♥": "hearts",
@@ -21,7 +20,6 @@ export function CardComponent({ card }: CardProps) {
     return map[suit] || suit.toLowerCase()
   }
 
-  // Map numeric rank to filename-friendly string
   const getRankName = (rank: number) => {
     const faceRanks: Record<number, string> = {
       11: "jack",
@@ -34,7 +32,6 @@ export function CardComponent({ card }: CardProps) {
 
   const suitName = getSuitName(card.suit)
   const rankName = getRankName(card.rank)
-
   const fileName = `${suitName}_${rankName}.svg`
 
   return (
@@ -64,4 +61,4 @@ export function CardsDisplay({ cards, title }: CardsDisplayProps) {
       </div>
     </div>
   )
-}
+} 

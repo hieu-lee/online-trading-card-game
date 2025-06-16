@@ -1,20 +1,20 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card as CardUi, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Crown, Users, Terminal, Wifi, WifiOff, Club, Diamond, Spade, Heart } from "lucide-react"
-import Image from "next/image"
+import { Club, Diamond, Spade, Heart } from "lucide-react"
 
 import { useWebSocket } from "@/hooks/use-websocket"
-import { UsernameDialog } from "@/components/username-dialog"
-import { CardsDisplay } from "@/components/card-display"
-import { HandInput } from "@/components/hand-input"
-import { Accordion, AccordionItem, AccordionContent, AccordionTrigger } from "@/components/ui/accordion"
-import { MessageType, type GameState, type Player, type Card } from "@/types/game-types"
+import { UsernameDialog } from "@/components/UsernameDialog"
+import { HandInput } from "@/components/HandInput"
+import { MessageType, type GameState, type Card } from "@/types/game-types"
+import { UserStatusCard } from "@/components/UserStatusCard"
+import { YourCards } from "@/components/YourCards"
+import { PlayersTable } from "@/components/PlayersTable"
+import { HostControls } from "@/components/HostControls"
+import { OnlineUsersCard } from "@/components/OnlineUsersCard"
+import { GameStatusCard } from "@/components/GameStatusCard"
+import { RecentMessages } from "@/components/RecentMessages"
 
 // local
 // const WS_URL = "ws://localhost:8765"
@@ -48,25 +48,6 @@ export default function Component() {
   const addMessage = useCallback((message: string) => {
     setMessages((prev) => [...prev.slice(-20), message])
   }, [])
-
-  // Helpers to map suit and rank to filename parts
-  const getSuitName = (suit: string) => {
-    const map: Record<string, string> = {
-      "♥": "hearts",
-      "♦": "diamonds",
-      "♣": "clubs",
-      "♠": "spades",
-      hearts: "hearts",
-      diamonds: "diamonds",
-      clubs: "clubs",
-      spades: "spades",
-    }
-    return map[suit] || suit.toLowerCase()
-  }
-  const getRankName = (rank: number) => {
-    const faceRanks: Record<number, string> = { 11: "jack", 12: "queen", 13: "king", 14: "ace" }
-    return faceRanks[rank] || rank.toString()
-  }
 
   // Message handlers
   useEffect(() => {
@@ -280,61 +261,14 @@ export default function Component() {
           </Alert>
         )}
 
-        {/* User Status */}
-        <CardUi className="bg-slate-800 border-green-400/20">
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-green-300">Username:</span>
-                <span className="text-white">{username}</span>
-                {isHost && (
-                  <Badge variant="outline" className="text-yellow-400 border-yellow-400/50">
-                    <Crown className="h-3 w-3 mr-1" />
-                    HOST
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-300">Connected:</span>
-                {isConnected ? (
-                  <Badge className="bg-green-600">
-                    <Wifi className="h-3 w-3 mr-1" />
-                    Yes
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive">
-                    <WifiOff className="h-3 w-3 mr-1" />
-                    No
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-300">Game Phase:</span>
-                <Badge variant="outline" className="text-blue-400 border-blue-400/50">
-                  {gameState?.phase?.replace("_", " ").toUpperCase() || "WAITING"}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </CardUi>
+        <UserStatusCard
+          username={username}
+          isHost={isHost}
+          isConnected={isConnected}
+          gamePhase={gameState?.phase}
+        />
 
-        {/* Your Cards */}
-        {yourCards.length > 0 && (
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent>
-              <Accordion type="single" collapsible defaultValue="your-cards">
-                <AccordionItem value="your-cards">
-                  <AccordionTrigger className="text-green-400 text-lg">
-                    Your Cards
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardsDisplay cards={yourCards} />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </CardUi>
-        )}
+        <YourCards cards={yourCards} />
 
         {/* Hand Input */}
         {gameState?.phase === "playing" && (
@@ -346,193 +280,35 @@ export default function Component() {
           />
         )}
 
-        {/* Players Table */}
-        {gameState?.players && gameState.players.length > 0 && (
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardHeader>
-              <CardTitle className="text-green-400 text-lg">Players</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-green-400/20 hover:bg-slate-700/50 h-12">
-                    <TableHead className="text-green-300">Username</TableHead>
-                    <TableHead className="text-green-300">Cards</TableHead>
-                    <TableHead className="text-green-300">Status</TableHead>
-                    <TableHead className="text-green-300">Last Call</TableHead>
-                    <TableHead className="text-green-300">
-                      {Object.keys(currentRoundHands).length > 0 ? "Current Hand" : "Last Hand"}
-                    </TableHead>
-                    <TableHead className="text-green-300">Turn</TableHead>
-                    {isHost && <TableHead className="text-green-300">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gameState.players.map((player: Player) => (
-                    <TableRow key={player.user_id} className="border-green-400/20 hover:bg-slate-700/50 h-12">
-                      <TableCell className="text-white">{player.username}</TableCell>
-                      <TableCell className="text-white">{player.card_count}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            player.is_eliminated
-                              ? "text-red-400 border-red-400/50"
-                              : "text-green-400 border-green-400/50"
-                          }
-                        >
-                          {player.is_eliminated ? "Eliminated" : "Active"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-white text-sm">{playerLastCalls[player.user_id] || "-"}</TableCell>
-                      <TableCell className="text-white p-0">
-                        {Object.keys(currentRoundHands).length > 0 ? (
-                          currentRoundHands[player.user_id] && (
-                            <div className="flex space-x-1 items-center">
-                              {currentRoundHands[player.user_id]?.map((card, idx) => {
-                                const suitName = getSuitName(card.suit)
-                                const rankName = getRankName(card.rank)
-                                const fileName = `${suitName}_${rankName}.svg`
-                                return (
-                                  <Image
-                                    key={idx}
-                                    src={`cards/${fileName}`}
-                                    alt={`${rankName} of ${suitName}`}
-                                    width={30}
-                                    height={42}
-                                  />
-                                )
-                              })}
-                            </div>
-                          )
-                        ) : (
-                          previousRoundHands[player.user_id] && (
-                            <div className="flex space-x-1 items-center">
-                              {previousRoundHands[player.user_id]?.map((card, idx) => {
-                                const suitName = getSuitName(card.suit)
-                                const rankName = getRankName(card.rank)
-                                const fileName = `${suitName}_${rankName}.svg`
-                                return (
-                                  <Image
-                                    key={idx}
-                                    src={`cards/${fileName}`}
-                                    alt={`${rankName} of ${suitName}`}
-                                    width={30}
-                                    height={42}
-                                  />
-                                )
-                              })}
-                            </div>
-                          )
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {gameState?.phase === "playing" && player.user_id === gameState.current_player_id && (
-                          <Badge className="bg-yellow-600">Active</Badge>
-                        )}
-                      </TableCell>
-                      {isHost && (
-                        <TableCell>
-                          {player.user_id !== userId && (
-                            <Button size="sm" variant="destructive" onClick={() => handleKickUser(player.username)}>
-                              Kick
-                            </Button>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </CardUi>
-        )}
+        <PlayersTable
+          players={gameState?.players || []}
+          currentRoundHands={currentRoundHands}
+          previousRoundHands={previousRoundHands}
+          playerLastCalls={playerLastCalls}
+          gamePhase={gameState?.phase}
+          currentPlayerId={gameState?.current_player_id}
+          isHost={isHost}
+          currentUserId={userId}
+          onKick={handleKickUser}
+        />
 
-        {/* Host Controls */}
-        {isHost && (
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardHeader>
-              <CardTitle className="text-yellow-400 text-lg flex items-center gap-2">
-                <Crown className="h-5 w-5" />
-                Host Controls
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                {gameState?.phase === "waiting" && (
-                  <Button onClick={handleStartGame} className="bg-green-600 hover:bg-green-700">
-                    Start Game
-                  </Button>
-                )}
-                <Button
-                  onClick={handleRestartGame}
-                  variant="outline"
-                  className="border-yellow-400/50 text-yellow-400 hover:bg-yellow-400/10"
-                >
-                  Restart Game
-                </Button>
-              </div>
-            </CardContent>
-          </CardUi>
-        )}
+        <HostControls
+          isHost={isHost}
+          phase={gameState?.phase}
+          onStart={handleStartGame}
+          onRestart={handleRestartGame}
+        />
 
         {/* Game Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Online Users */}
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent>
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="h-4 w-4 text-green-400" />
-                <span className="text-green-300">Online users ({onlineUsers.length}):</span>
-              </div>
-              <div className="text-white mt-2">{onlineUsers.join(", ") || "None"}</div>
-            </CardContent>
-          </CardUi>
-
-          {/* Game Status */}
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                {gameState?.round_number !== undefined && (
-                  <div>
-                    <span className="text-green-300">Round:</span>
-                    <span className="text-white ml-2">{gameState.round_number}</span>
-                  </div>
-                )}
-                {gameState?.waiting_players_count !== undefined && (
-                  <div>
-                    <span className="text-green-300">Waiting players:</span>
-                    <span className="text-white ml-2">{gameState.waiting_players_count}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </CardUi>
+          <OnlineUsersCard onlineUsers={onlineUsers} />
+          <GameStatusCard
+            roundNumber={gameState?.round_number}
+            waitingPlayers={gameState?.waiting_players_count}
+          />
         </div>
 
-        {/* Messages */}
-        {messages.length > 0 && (
-          <CardUi className="bg-slate-800 border-green-400/20">
-            <CardContent>
-              <Accordion type="single" collapsible>
-                <AccordionItem value="history">
-                  <AccordionTrigger className="text-green-400 text-lg">
-                    Recent Messages
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="text-sm max-h-64 overflow-y-auto">
-                      {messages.map((message, index) => (
-                        <div key={index} className="text-gray-300">
-                          {message}
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </CardUi>
-        )}
+        <RecentMessages messages={messages} />
       </div>
     </div>
   )
