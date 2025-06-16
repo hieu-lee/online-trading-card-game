@@ -15,6 +15,13 @@ import { HostControls } from "@/components/HostControls"
 import { OnlineUsersCard } from "@/components/OnlineUsersCard"
 import { GameStatusCard } from "@/components/GameStatusCard"
 import { RecentMessages } from "@/components/RecentMessages"
+import { useAuthDialog } from "@/hooks/useAuthDialog"
+import { useUserInfo } from "@/hooks/useUserInfo"
+import { useOnlineUsers } from "@/hooks/useOnlineUsers"
+import { useMessages } from "@/hooks/useMessages"
+import { usePlayerLastCalls } from "@/hooks/usePlayerLastCalls"
+import { useGameHands } from "@/hooks/useGameHands"
+import { useGameState } from "@/hooks/useGameState"
 
 // local
 // const WS_URL = "ws://localhost:8765"
@@ -24,30 +31,42 @@ const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
 // const WS_URL = "wss://online-trading-card-game.onrender.com"
 
 export default function Component() {
-  // Connection state
-  const [showUsernameDialog, setShowUsernameDialog] = useState(true)
-  const [usernameError, setUsernameError] = useState<string>("")
-  const [isConnecting, setIsConnecting] = useState(false)
+  const {
+    showUsernameDialog,
+    setShowUsernameDialog,
+    usernameError,
+    setUsernameError,
+    isConnecting,
+    setIsConnecting,
+  } = useAuthDialog()
 
-  // Game state
-  const [userId, setUserId] = useState<string>("")
-  const [username, setUsername] = useState<string>("")
-  const [isHost, setIsHost] = useState(false)
-  const [gameState, setGameState] = useState<GameState | null>(null)
-  const [yourCards, setYourCards] = useState<Card[]>([])
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
-  const [messages, setMessages] = useState<string[]>([])
-  const [playerLastCalls, setPlayerLastCalls] = useState<Record<string, string>>({})
-  // Previous round hands state for displaying last hand
-  const [previousRoundHands, setPreviousRoundHands] = useState<Record<string, Card[]>>({})
-  // Current round hands state for displaying during current round (if provided by backend)
-  const [currentRoundHands, setCurrentRoundHands] = useState<Record<string, Card[]>>({})
+  const {
+    userId,
+    setUserId,
+    username,
+    setUsername,
+    isHost,
+    setIsHost,
+  } = useUserInfo()
+
+  const { onlineUsers, setOnlineUsers } = useOnlineUsers()
+
+  const { gameState, setGameState } = useGameState()
+
+  const { messages, addMessage } = useMessages()
+
+  const { playerLastCalls, setPlayerLastCalls } = usePlayerLastCalls()
+
+  const {
+    yourCards,
+    setYourCards,
+    previousRoundHands,
+    setPreviousRoundHands,
+    currentRoundHands,
+    setCurrentRoundHands,
+  } = useGameHands()
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
-
-  const addMessage = useCallback((message: string) => {
-    setMessages((prev) => [...prev.slice(-20), message])
-  }, [])
 
   // Message handlers
   useEffect(() => {
