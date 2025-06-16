@@ -9,7 +9,6 @@ import { UsernameDialog } from "@/components/UsernameDialog"
 import { HandInput } from "@/components/HandInput"
 import { MessageType, type GameState, type Card } from "@/types/game-types"
 import { UserStatusCard } from "@/components/UserStatusCard"
-import { YourCards } from "@/components/YourCards"
 import { PlayersTable } from "@/components/PlayersTable"
 import { HostControls } from "@/components/HostControls"
 import { OnlineUsersCard } from "@/components/OnlineUsersCard"
@@ -140,11 +139,15 @@ export default function Component() {
 
     addMessageHandler(MessageType.GAME_START, () => {
       addMessage("Game started!")
+      setPlayerLastCalls({})
+      setPreviousRoundHands({})
+      setYourCards([])
     })
 
     addMessageHandler(MessageType.GAME_RESTART, () => {
       addMessage("Game restarted!")
       setPlayerLastCalls({})
+      setPreviousRoundHands({})
       setYourCards([])
     })
 
@@ -233,13 +236,6 @@ export default function Component() {
     sendMessage(MessageType.GAME_RESTART, { user_id: userId })
   }
 
-  const handleKickUser = (targetUsername: string) => {
-    sendMessage(MessageType.KICK_USER, {
-      host_id: userId,
-      target_username: targetUsername,
-    })
-  }
-
   const handleCallHand = (handSpec: string) => {
     sendMessage(MessageType.CALL_HAND, {
       user_id: userId,
@@ -287,8 +283,6 @@ export default function Component() {
           gamePhase={gameState?.phase}
         />
 
-        <YourCards cards={yourCards} />
-
         {/* Hand Input */}
         {gameState?.phase === "playing" && (
           <HandInput
@@ -306,9 +300,8 @@ export default function Component() {
           playerLastCalls={playerLastCalls}
           gamePhase={gameState?.phase}
           currentPlayerId={gameState?.current_player_id}
-          isHost={isHost}
           currentUserId={userId}
-          onKick={handleKickUser}
+          yourCards={yourCards}
         />
 
         <HostControls
