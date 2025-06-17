@@ -311,6 +311,8 @@ class HandComparator:
             HandType.PAIR,
             HandType.THREE_OF_A_KIND,
             HandType.FOUR_OF_A_KIND,
+            HandType.STRAIGHT,
+            HandType.STRAIGHT_FLUSH,
         ]:
             return HandComparator._compare_by_primary_rank(hand1, hand2)
 
