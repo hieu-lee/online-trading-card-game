@@ -184,10 +184,6 @@ class Game:
 
     def get_active_players(self) -> List[Player]:
         """Get all non-eliminated players"""
-        print(
-            "game phase at get_active_players call",
-            self.phase,
-        )
         return (
             [
                 p
@@ -228,7 +224,6 @@ class Game:
 
     async def start_game(self) -> bool:
         """Start the game"""
-        print("Starting game...")
         if not self.can_start_game():
             return False
 
@@ -421,7 +416,6 @@ class Game:
 
     async def end_game(self):
         """End the game"""
-        print("Ending game...")
         self.winner_id = (
             self.get_active_players()[0].user.id
             if self.get_active_players()
