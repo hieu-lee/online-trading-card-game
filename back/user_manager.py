@@ -8,12 +8,10 @@ This module handles:
 - Online status tracking
 """
 
-import sqlite3
-import asyncio
 import aiosqlite
 import uuid
-from typing import Dict, List, Optional, Set
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from datetime import datetime
 from dataclasses import dataclass
 import random
 
@@ -29,6 +27,25 @@ class User:
     is_online: bool = False
 
 
+@dataclass
+class LeaderboardEntry:
+    """Represents a single leaderboard row"""
+
+    username: str
+    wins: int
+
+
+@dataclass
+class GameHistory:
+    """Represents a single game history entry"""
+
+    id: str
+    winner_id: str
+    players: List[str]  # List of user IDs
+    started_at: datetime
+    ended_at: datetime
+
+
 class DatabaseManager:
     """Handles all database operations"""
 
@@ -39,7 +56,7 @@ class DatabaseManager:
         """Create database tables if they don't exist"""
         async with aiosqlite.connect(self.db_path) as db:
             # Users table
-            await db.execute("""
+            _ = await db.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
@@ -49,21 +66,31 @@ class DatabaseManager:
             """)
 
             # Game history table
-            await db.execute("""
+            _ = await db.execute("""
                 CREATE TABLE IF NOT EXISTS game_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    game_id TEXT NOT NULL,
-                    winner TEXT NOT NULL,
-                    players TEXT NOT NULL,  -- JSON string of player list
-                    duration INTEGER,  -- Duration in seconds
-                    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    ended_at TIMESTAMP
+                    id TEXT PRIMARY KEY,
+                    winner_id TEXT NOT NULL, -- winner id
+                    started_at TIMESTAMP,
+                    ended_at TIMESTAMP,
+                    FOREIGN KEY (winner_id) REFERENCES users(id)
                 )
             """)
 
+            # Game history table
+            _ = await db.execute("""
+                CREATE TABLE IF NOT EXISTS game_players (
+                    game_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    FOREIGN KEY (game_id) REFERENCES game_history(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    PRIMARY KEY (game_id, user_id)
+                );
+            """)
             await db.commit()
 
-    async def get_user_by_username(self, username: str) -> Optional[User]:
+    async def get_user_by_username(
+        self, username: str
+    ) -> Optional[User]:
         """Get user by username from database"""
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
@@ -75,19 +102,14 @@ class DatabaseManager:
                     return User(
                         id=row[0],
                         username=row[1],
-                        created_at=datetime.fromisoformat(row[2]),
-                        last_seen=datetime.fromisoformat(row[3]),
+                        created_at=datetime.fromisoformat(
+                            row[2]
+                        ),
+                        last_seen=datetime.fromisoformat(
+                            row[3]
+                        ),
                     )
                 return None
-
-    async def user_win(self, username: str) -> Optional[User]:
-        # UPDATE users
-        # SET games_won = games_won + 1
-        # WHERE username = "linh";
-        pass
-
-    async def get_leaderboard(self) -> Optional[User]:
-        pass
 
     async def create_user(self, username: str) -> User:
         """Create a new user in the database"""
@@ -95,63 +117,89 @@ class DatabaseManager:
         now = datetime.now()
 
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
+            _ = await db.execute(
                 "INSERT INTO users (id, username, created_at, last_seen) VALUES (?, ?, ?, ?)",
-                (user_id, username, now.isoformat(), now.isoformat()),
+                (
+                    user_id,
+                    username,
+                    now.isoformat(),
+                    now.isoformat(),
+                ),
             )
             await db.commit()
 
-        return User(id=user_id, username=username, created_at=now, last_seen=now)
+        return User(
+            id=user_id,
+            username=username,
+            created_at=now,
+            last_seen=now,
+        )
 
     async def update_last_seen(self, user_id: str):
         """Update user's last seen timestamp"""
         now = datetime.now()
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
+            _ = await db.execute(
                 "UPDATE users SET last_seen = ? WHERE id = ?",
                 (now.isoformat(), user_id),
             )
             await db.commit()
 
-    async def save_game_result(
-        self,
-        game_id: str,
-        winner: str,
-        players: List[str],
-        duration: int,
-        started_at: datetime,
-    ):
+    async def save_game_result(self, game: GameHistory):
         """Save game result to history"""
-        import json
-
-        ended_at = datetime.now()
-
         async with aiosqlite.connect(self.db_path) as db:
+            # Insert the game record using the provided UUID
             await db.execute(
-                """
-                INSERT INTO game_history 
-                (game_id, winner, players, duration, started_at, ended_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
+                "INSERT INTO game_history (id, winner_id, started_at, ended_at) VALUES (?, ?, ?, ?)",
                 (
-                    game_id,
-                    winner,
-                    json.dumps(players),
-                    duration,
-                    started_at.isoformat(),
-                    ended_at.isoformat(),
+                    game.id,  # UUID string
+                    game.winner_id,
+                    game.started_at.isoformat(),
+                    game.ended_at.isoformat(),
                 ),
             )
+
+            # Insert each player into game_players using the UUID
+            for player_id in game.players:
+                await db.execute(
+                    "INSERT INTO game_players (game_id, user_id) VALUES (?, ?)",
+                    (game.id, player_id),
+                )
+
             await db.commit()
+
+    async def get_leaderboard(
+        self,
+    ) -> List[LeaderboardEntry]:
+        """Get leaderboard sorted by wins"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                "SELECT username, COUNT(*) as wins FROM game_players "
+                "JOIN users ON game_players.user_id = users.id "
+                "GROUP BY username ORDER BY wins DESC LIMIT 20"
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    LeaderboardEntry(
+                        username=row[0], wins=row[1]
+                    )
+                    for row in rows
+                ]
 
 
 class UserSessionManager:
     """Manages user sessions and online status"""
 
     def __init__(self):
-        self.online_users: Dict[str, User] = {}  # user_id -> User
-        self.username_to_id: Dict[str, str] = {}  # username -> user_id
-        self.user_connections: Dict[str, object] = {}  # user_id -> websocket connection
+        self.online_users: Dict[
+            str, User
+        ] = {}  # user_id -> User
+        self.username_to_id: Dict[
+            str, str
+        ] = {}  # username -> user_id
+        self.user_connections: Dict[
+            str, object
+        ] = {}  # user_id -> websocket connection
         self.db_manager = DatabaseManager()
 
     async def initialize(self):
@@ -170,11 +218,15 @@ class UserSessionManager:
         """Get count of online users"""
         return len(self.online_users)
 
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
+    def get_user_by_id(
+        self, user_id: str
+    ) -> Optional[User]:
         """Get online user by ID"""
         return self.online_users.get(user_id)
 
-    def get_user_by_username(self, username: str) -> Optional[User]:
+    def get_user_by_username(
+        self, username: str
+    ) -> Optional[User]:
         """Get online user by username"""
         user_id = self.username_to_id.get(username)
         if user_id:
@@ -194,7 +246,11 @@ class UserSessionManager:
 
         username = username.strip()
         if len(username) > 20:
-            return False, "Username too long (max 20 characters)", None
+            return (
+                False,
+                "Username too long (max 20 characters)",
+                None,
+            )
 
         # Check if username is already online
         if self.is_username_online(username):
@@ -206,10 +262,18 @@ class UserSessionManager:
 
         # Check if too many users are online (max 8)
         if self.get_online_count() >= 8:
-            return False, "Room is full (maximum 8 players)", None
+            return (
+                False,
+                "Room is full (maximum 8 players)",
+                None,
+            )
 
         # Check if user exists in database
-        existing_user = await self.db_manager.get_user_by_username(username)
+        existing_user = (
+            await self.db_manager.get_user_by_username(
+                username
+            )
+        )
 
         if existing_user:
             # User exists in database, use existing user
@@ -217,7 +281,9 @@ class UserSessionManager:
             user.is_online = True
         else:
             # Create new user
-            user = await self.db_manager.create_user(username)
+            user = await self.db_manager.create_user(
+                username
+            )
             user.is_online = True
 
         # Add to online sessions
@@ -262,7 +328,9 @@ class HostManager:
     def get_host(self) -> Optional[User]:
         """Get current host user"""
         if self.current_host_id:
-            return self.session_manager.get_user_by_id(self.current_host_id)
+            return self.session_manager.get_user_by_id(
+                self.current_host_id
+            )
         return None
 
     def is_host(self, user_id: str) -> bool:
@@ -279,7 +347,9 @@ class HostManager:
 
     def select_new_host(self) -> Optional[User]:
         """Select a new host when current host disconnects"""
-        online_users = self.session_manager.get_online_users()
+        online_users = (
+            self.session_manager.get_online_users()
+        )
 
         if not online_users:
             self.current_host_id = None
@@ -290,7 +360,9 @@ class HostManager:
         self.current_host_id = new_host.id
         return new_host
 
-    def handle_host_disconnect(self, disconnected_user_id: str) -> Optional[User]:
+    def handle_host_disconnect(
+        self, disconnected_user_id: str
+    ) -> Optional[User]:
         """Handle when host disconnects"""
         if self.current_host_id == disconnected_user_id:
             return self.select_new_host()
@@ -298,8 +370,11 @@ class HostManager:
 
     def ensure_host_exists(self) -> Optional[User]:
         """Ensure there's always a host when users are online"""
-        if not self.current_host_id or not self.session_manager.get_user_by_id(
-            self.current_host_id
+        if (
+            not self.current_host_id
+            or not self.session_manager.get_user_by_id(
+                self.current_host_id
+            )
         ):
             return self.select_new_host()
         return self.get_host()
@@ -320,7 +395,9 @@ async def authenticate_user(
     username: str, websocket
 ) -> tuple[bool, str, Optional[User]]:
     """Wrapper function for user authentication"""
-    return await user_session_manager.authenticate_user(username, websocket)
+    return await user_session_manager.authenticate_user(
+        username, websocket
+    )
 
 
 async def disconnect_user(user_id: str) -> Optional[User]:
@@ -360,4 +437,3 @@ def get_user_connection(user_id: str):
 def get_all_connections() -> List[object]:
     """Get all websocket connections"""
     return user_session_manager.get_all_connections()
-
