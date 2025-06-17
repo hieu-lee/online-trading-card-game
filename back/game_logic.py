@@ -287,7 +287,7 @@ class Game:
 
         return True, "Hand call made successfully"
 
-    def call_bluff(self, user_id: str) -> Tuple[bool, str, Optional[str]]:
+    def call_bluff(self, user_id: str) -> Tuple[bool, str, Dict | None]:
         """Player calls bluff on the previous hand call"""
         if not self.current_round or self.current_round.phase != RoundPhase.CALLING:
             return False, "Not in calling phase", None
@@ -315,11 +315,22 @@ class Game:
 
         self.current_round.loser_id = loser_id
         self.end_round(loser_id)
+        loser = self.get_player(loser_id)
+        if loser is None:
+            loser = None
+        else:
+            loser = {
+                "user_id": loser.user.id,
+                "username": loser.user.username,
+                "card_count": loser.card_count,
+                "losses": loser.losses,
+                "is_eliminated": loser.is_eliminated,
+            }
 
         return (
             True,
             f"Bluff called! Hand {'exists' if hand_exists else 'does not exist'}",
-            loser_id,
+            loser,
         )
 
     def end_round(self, loser_id: str):
@@ -478,7 +489,7 @@ def make_hand_call(user_id: str, hand: PokerHand) -> Tuple[bool, str]:
     return game_instance.make_hand_call(user_id, hand)
 
 
-def call_bluff(user_id: str) -> Tuple[bool, str, Optional[str]]:
+def call_bluff(user_id: str) -> Tuple[bool, str, Optional[Dict]]:
     """Call bluff"""
     return game_instance.call_bluff(user_id)
 

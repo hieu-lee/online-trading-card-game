@@ -7,7 +7,7 @@ import { Club, Diamond, Spade, Heart } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
 import { UsernameDialog } from "@/components/UsernameDialog"
 import { HandInput } from "@/components/HandInput"
-import { MessageType, type GameState, type Card } from "@/types/game-types"
+import { MessageType, type GameState, type Card, type Player } from "@/types/game-types"
 import { UserStatusCard } from "@/components/UserStatusCard"
 import { PlayersTable } from "@/components/PlayersTable"
 import { HostControls } from "@/components/HostControls"
@@ -21,13 +21,14 @@ import { useMessages } from "@/hooks/useMessages"
 import { usePlayerLastCalls } from "@/hooks/usePlayerLastCalls"
 import { useGameHands } from "@/hooks/useGameHands"
 import { useGameState } from "@/hooks/useGameState"
+import { toast } from "sonner"
 
 // local
-// const WS_URL = "ws://localhost:8765"
+const WS_URL = "ws://localhost:8765"
 // staging
 // const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
 // prod
-const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
+// const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
 
 export default function Component() {
   const {
@@ -183,20 +184,19 @@ export default function Component() {
       addMessage(`Round ${roundNumber} has started`)
     })
 
-    addMessageHandler(MessageType.ROUND_END, (data: { round_number: number, loser_id: string }) => {
-      const roundNumber = data.round_number
-      const loser = data.loser_id
-      addMessage(`Round ${roundNumber} ended. Player ${loser} lost`)
-      setYourCards([])
-    })
-
     addMessageHandler(MessageType.SHOW_CARDS, () => {
       addMessage("Revealing cards to all players")
     })
 
     addMessageHandler(
       MessageType.CALL_BLUFF,
-      (data: { message: string; loser_id: string; previous_round_cards?: { user_id: string; cards: Card[] }[] }) => {
+      (data: { message: string; loser: Player; previous_round_cards?: { user_id: string; cards: Card[] }[] }) => {
+        console.dir(data)
+        if (data.loser.is_eliminated) {
+          toast(`Player ${data.loser.username} such a FAILUREEEE !`)
+        } else {
+          toast(`Player ${data.loser.username} STOOPID ${data.loser.card_count - 1} times`)
+        }
         addMessage(data.message || "Bluff called")
         if (data.previous_round_cards && data.previous_round_cards.length > 0) {
           const handsMap = data.previous_round_cards.reduce<Record<string, Card[]>>((acc, curr) => {
