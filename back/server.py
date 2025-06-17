@@ -23,6 +23,7 @@ from message_protocol import (
     parse_message,
 )
 from user_manager import (
+    DatabaseManager,
     initialize_user_system,
     authenticate_user,
     disconnect_user,
@@ -302,6 +303,10 @@ class GameServer:
             else:
                 is_user_host = is_host(user.id)
 
+            leaderboard = (
+                await DatabaseManager().get_leaderboard()
+            )
+
             # Send join response
             response = create_message(
                 MessageType.USER_JOIN,
@@ -312,6 +317,7 @@ class GameServer:
                     "username": user.username,
                     "is_host": is_user_host,
                     "game_joined": game_joined,
+                    "leaderboard": leaderboard,
                 },
             )
             await websocket.send(json.dumps(response))
@@ -520,7 +526,9 @@ class GameServer:
             }
             for pid, cards in previous_round_cards.items()
         ]
-        success, message, loser_id = await call_bluff(user_id)
+        success, message, loser_id = await call_bluff(
+            user_id
+        )
 
         if success:
             bluff_message = create_message(

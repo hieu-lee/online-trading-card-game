@@ -27,12 +27,12 @@ class User:
     is_online: bool = False
 
 
+# You'll also need to update your LeaderboardEntry class:
 @dataclass
 class LeaderboardEntry:
-    """Represents a single leaderboard row"""
-
     username: str
     wins: int
+    games_played: int
 
 
 @dataclass
@@ -173,15 +173,25 @@ class DatabaseManager:
     ) -> List[LeaderboardEntry]:
         """Get leaderboard sorted by wins"""
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute(
-                "SELECT username, COUNT(*) as wins FROM game_players "
-                "JOIN users ON game_players.user_id = users.id "
-                "GROUP BY username ORDER BY wins DESC LIMIT 20"
-            ) as cursor:
+            async with db.execute("""
+                SELECT 
+                    u.username,
+                    COUNT(DISTINCT CASE WHEN gh.winner_id = u.id THEN gh.id END) as wins,
+                    COUNT(DISTINCT gp.game_id) as games_played
+                FROM users u
+                LEFT JOIN game_players gp ON u.id = gp.user_id
+                LEFT JOIN game_history gh ON gp.game_id = gh.id
+                GROUP BY u.id, u.username
+                HAVING games_played > 0
+                ORDER BY wins DESC, games_played DESC
+                LIMIT 20
+            """) as cursor:
                 rows = await cursor.fetchall()
                 return [
                     LeaderboardEntry(
-                        username=row[0], wins=row[1]
+                        username=row[0],
+                        wins=row[1],
+                        games_played=row[2],
                     )
                     for row in rows
                 ]

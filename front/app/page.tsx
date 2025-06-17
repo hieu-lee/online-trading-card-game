@@ -19,8 +19,9 @@ import { useUserInfo } from "@/hooks/useUserInfo"
 import { useOnlineUsers } from "@/hooks/useOnlineUsers"
 import { useMessages } from "@/hooks/useMessages"
 import { usePlayerLastCalls } from "@/hooks/usePlayerLastCalls"
-import { useGameHands } from "@/hooks/useGameHands"
 import { useGameState } from "@/hooks/useGameState"
+import { useGameHands } from "@/hooks/useGameHands"
+import { LeaderboardEntry } from "@/types/game-types"
 
 // local
 const WS_URL = "ws://localhost:8765"
@@ -67,11 +68,15 @@ export default function Component() {
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+
   // Message handlers
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addMessageHandler(MessageType.USER_JOIN, (data: any) => {
+    addMessageHandler(MessageType.USER_JOIN, (data: Record<string, any>) => {
+      console.dir(data)
       if (data.success) {
+        setLeaderboard(data.leaderboard || [])
         setUserId(data.user_id)
         setUsername(data.username)
         setIsHost(data.is_host || false)
@@ -275,6 +280,7 @@ export default function Component() {
             <AlertDescription className="text-red-400">Connection Error: {connectionError}</AlertDescription>
           </Alert>
         )}
+
 
         <UserStatusCard
           username={username}

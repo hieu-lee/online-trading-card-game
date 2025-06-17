@@ -27,6 +27,12 @@ export interface GameMessage {
   data: any
 }
 
+export interface LeaderboardEntry {
+  username: string
+  wins: number
+  games_played: number
+}
+
 export enum MessageType {
   USER_JOIN = "user_join",
   USERNAME_ERROR = "username_error",
