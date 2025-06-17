@@ -192,7 +192,7 @@ export default function Component() {
       MessageType.CALL_BLUFF,
       (data: { message: string; loser: Player; previous_round_cards?: { user_id: string; cards: Card[] }[] }) => {
         console.dir(data)
-        if (data.loser.is_eliminated) {
+        if (data.loser.is_eliminated || data.loser.card_count == 0) {
           toast(`Player ${data.loser.username} such a FAILUREEEE !`)
         } else {
           toast(`Player ${data.loser.username} STOOPID ${data.loser.card_count - 1} times`)
