@@ -24,11 +24,11 @@ import { useGameState } from "@/hooks/useGameState"
 import { toast } from "sonner"
 
 // local
-const WS_URL = "ws://localhost:8765"
+// const WS_URL = "ws://localhost:8765"
 // staging
 // const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
 // prod
-// const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
+const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
 
 export default function Component() {
   const {
