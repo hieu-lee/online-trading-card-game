@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import Image from "next/image"
 import {
   Card as CardUi,
@@ -61,6 +61,78 @@ export function PlayersTable({
   currentUserId,
   yourCards,
 }: PlayersTableProps) {
+  // Show previous round hands for 5 seconds once they change
+  const [showLastHands, setShowLastHands] = useState(false)
+
+  useEffect(() => {
+    // Detect if we received any previous round hands (non-empty arrays)
+    const hasPrevHands = Object.values(previousRoundHands).some(
+      (arr) => Array.isArray(arr) && arr.length > 0,
+    )
+
+    if (hasPrevHands) {
+      setShowLastHands(true)
+
+      const timer = setTimeout(() => {
+        setShowLastHands(false)
+      }, 5000) // keep on screen for 5 seconds
+
+      return () => clearTimeout(timer)
+    }
+  }, [previousRoundHands])
+
+  // Helper to render a single card with a flip animation
+  const FlipCard: React.FC<{
+    card: Card
+    variant: "large" | "small"
+    idx: number
+  }> = ({ card, variant, idx }) => {
+    const [flipped, setFlipped] = useState(false)
+
+    useEffect(() => {
+      // start flip on mount – small delay allows initial render with back face
+      const t = setTimeout(() => setFlipped(true), 20)
+      return () => clearTimeout(t)
+    }, [])
+
+    const sizeMap = {
+      large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
+      small: "w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16",
+    } as const
+    const overlapMap = {
+      large: "-ml-6 sm:-ml-8 md:-ml-10",
+      small: "-ml-4 sm:-ml-5 md:-ml-6",
+    } as const
+    const overlap = idx === 0 ? "" : overlapMap[variant]
+
+    const suitName = getSuitName(card.suit)
+    const rankName = getRankName(card.rank)
+    const fileName = `${suitName}_${rankName}.svg`
+
+    return (
+      <div className={`flip-card relative ${sizeMap[variant]} ${overlap}`}>
+        <div
+          className={`flip-card-inner w-full h-full ${flipped ? "flipped" : ""}`}
+        >
+          {/* back */}
+          <Image
+            src="cards/back_card.svg"
+            alt="Back of card"
+            fill
+            className="flip-card-front object-contain"
+          />
+          {/* front */}
+          <Image
+            src={`cards/${fileName}`}
+            alt={`${rankName} of ${suitName}`}
+            fill
+            className="flip-card-back object-contain"
+          />
+        </div>
+      </div>
+    )
+  }
+
   const MAX_SEATS = 8
   if (!players?.length) return null
 
@@ -111,8 +183,8 @@ export function PlayersTable({
             const borderColor = isEliminated
               ? "border-red-600"
               : isActiveTurn
-              ? "border-green-500"
-              : "border-gray-600"
+                ? "border-green-500"
+                : "border-gray-600"
 
             // Determine which hand to show and whether to use card backs
             const currentHand = currentRoundHands[player.user_id]
@@ -143,35 +215,54 @@ export function PlayersTable({
                           const suitName = getSuitName(card.suit)
                           const rankName = getRankName(card.rank)
                           const fileName = `${suitName}_${rankName}.svg`
-                          return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "large", idx)
-                        })
-                      : isSelf
-                      ? yourCards.map((card, idx) => {
-                          const suitName = getSuitName(card.suit)
-                          const rankName = getRankName(card.rank)
-                          const fileName = `${suitName}_${rankName}.svg`
-                          return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "large", idx)
-                        })
-                      : [...Array(player.card_count)].map((_, idx) =>
-                          renderCardImage(
-                            "cards/back_card.svg",
-                            "Face down card",
+                          return renderCardImage(
+                            `cards/${fileName}`,
+                            `${rankName} of ${suitName}`,
                             "large",
                             idx,
-                          ),
-                        )}
-                  </div>
-                )}
-
-                {/* Last hand when no current hand (only if not eliminated and not self) */}
-                {!isEliminated && !isSelf && !showCurrent && lastHand && lastHand.length > 0 && (
-                  <div className="flex mt-1">
-                    {lastHand.map((card, idx) => {
-                      const suitName = getSuitName(card.suit)
-                      const rankName = getRankName(card.rank)
-                      const fileName = `${suitName}_${rankName}.svg`
-                      return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "small", idx)
-                    })}
+                          )
+                        })
+                      : showLastHands && lastHand && lastHand.length > 0
+                        ? isSelf
+                          ? lastHand.map((card, idx) => {
+                              const suitName = getSuitName(card.suit)
+                              const rankName = getRankName(card.rank)
+                              const fileName = `${suitName}_${rankName}.svg`
+                              return renderCardImage(
+                                `cards/${fileName}`,
+                                `${rankName} of ${suitName}`,
+                                "large",
+                                idx,
+                              )
+                            })
+                          : lastHand.map((card, idx) => (
+                              <FlipCard
+                                key={idx}
+                                card={card}
+                                variant="large"
+                                idx={idx}
+                              />
+                            ))
+                        : isSelf
+                          ? yourCards.map((card, idx) => {
+                              const suitName = getSuitName(card.suit)
+                              const rankName = getRankName(card.rank)
+                              const fileName = `${suitName}_${rankName}.svg`
+                              return renderCardImage(
+                                `cards/${fileName}`,
+                                `${rankName} of ${suitName}`,
+                                "large",
+                                idx,
+                              )
+                            })
+                          : [...Array(player.card_count)].map((_, idx) =>
+                              renderCardImage(
+                                "cards/back_card.svg",
+                                "Face down card",
+                                "large",
+                                idx,
+                              ),
+                            )}
                   </div>
                 )}
 

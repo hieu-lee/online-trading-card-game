@@ -12,7 +12,7 @@ import asyncio
 import websockets
 import json
 import logging
-from typing import Set, Dict, Optional
+from typing import Set, Dict
 from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServerProtocol
 import os
@@ -526,16 +526,14 @@ class GameServer:
             }
             for pid, cards in previous_round_cards.items()
         ]
-        success, message, loser_id = await call_bluff(
-            user_id
-        )
+        success, message, loser = await call_bluff(user_id)
 
         if success:
             bluff_message = create_message(
                 MessageType.CALL_BLUFF,
                 {
                     "message": message,
-                    "loser_id": loser_id,
+                    "loser": loser,
                     "previous_round_cards": previous_round_cards_data,
                 },
             )

@@ -28,7 +28,7 @@ export function HostControls({ isHost, phase, onStart, onRestart }: Props) {
           <Button
             onClick={onRestart}
             variant="outline"
-            className="border-yellow-400/50 text-yellow-400 hover:bg-yellow-400/10"
+            className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 bg-slate-900"
           >
             Restart Game
           </Button>
