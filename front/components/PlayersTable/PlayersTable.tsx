@@ -111,8 +111,8 @@ export function PlayersTable({
             const borderColor = isEliminated
               ? "border-red-600"
               : isActiveTurn
-              ? "border-green-500"
-              : "border-gray-600"
+                ? "border-green-500"
+                : "border-gray-600"
 
             // Determine which hand to show and whether to use card backs
             const currentHand = currentRoundHands[player.user_id]
@@ -140,19 +140,19 @@ export function PlayersTable({
                   <div className="flex mt-1">
                     {showCurrent
                       ? currentHand!.map((card, idx) => {
-                          const suitName = getSuitName(card.suit)
-                          const rankName = getRankName(card.rank)
-                          const fileName = `${suitName}_${rankName}.svg`
-                          return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "large", idx)
-                        })
+                        const suitName = getSuitName(card.suit)
+                        const rankName = getRankName(card.rank)
+                        const fileName = `${suitName}_${rankName}.svg`
+                        return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "large", idx)
+                      })
                       : isSelf
-                      ? yourCards.map((card, idx) => {
+                        ? yourCards.map((card, idx) => {
                           const suitName = getSuitName(card.suit)
                           const rankName = getRankName(card.rank)
                           const fileName = `${suitName}_${rankName}.svg`
                           return renderCardImage(`cards/${fileName}`, `${rankName} of ${suitName}`, "large", idx)
                         })
-                      : [...Array(player.card_count)].map((_, idx) =>
+                        : [...Array(player.card_count)].map((_, idx) =>
                           renderCardImage(
                             "cards/back_card.svg",
                             "Face down card",
@@ -164,7 +164,7 @@ export function PlayersTable({
                 )}
 
                 {/* Last hand when no current hand (only if not eliminated and not self) */}
-                {!isEliminated && !isSelf && !showCurrent && lastHand && lastHand.length > 0 && (
+                {!isEliminated && !showCurrent && lastHand && lastHand.length > 0 && (
                   <div className="flex mt-1">
                     {lastHand.map((card, idx) => {
                       const suitName = getSuitName(card.suit)
