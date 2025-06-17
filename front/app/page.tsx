@@ -22,6 +22,7 @@ import { usePlayerLastCalls } from "@/hooks/usePlayerLastCalls"
 import { useGameState } from "@/hooks/useGameState"
 import { useGameHands } from "@/hooks/useGameHands"
 import { LeaderboardEntry } from "@/types/game-types"
+import { Leaderboard } from "@/components/leaderboard"
 
 // local
 const WS_URL = "ws://localhost:8765"
@@ -327,6 +328,7 @@ export default function Component() {
         </div>
 
         <RecentMessages messages={messages} />
+        <Leaderboard entries={leaderboard} />
       </div>
     </div>
   )
