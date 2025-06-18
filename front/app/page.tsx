@@ -19,8 +19,10 @@ import { useUserInfo } from "@/hooks/useUserInfo"
 import { useOnlineUsers } from "@/hooks/useOnlineUsers"
 import { useMessages } from "@/hooks/useMessages"
 import { usePlayerLastCalls } from "@/hooks/usePlayerLastCalls"
-import { useGameHands } from "@/hooks/useGameHands"
 import { useGameState } from "@/hooks/useGameState"
+import { useGameHands } from "@/hooks/useGameHands"
+import { LeaderboardEntry } from "@/types/game-types"
+import { Leaderboard } from "@/components/leaderboard"
 import { toast } from "sonner"
 
 // local
@@ -68,11 +70,14 @@ export default function Component() {
 
   const { isConnected, connectionError, connect, disconnect, sendMessage, addMessageHandler } = useWebSocket(WS_URL)
 
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+
   // Message handlers
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addMessageHandler(MessageType.USER_JOIN, (data: any) => {
+    addMessageHandler(MessageType.USER_JOIN, (data: Record<string, any>) => {
       if (data.success) {
+        setLeaderboard(data.leaderboard || [])
         setUserId(data.user_id)
         setUsername(data.username)
         setIsHost(data.is_host || false)
@@ -276,6 +281,7 @@ export default function Component() {
           </Alert>
         )}
 
+
         <UserStatusCard
           username={username}
           isHost={isHost}
@@ -321,6 +327,7 @@ export default function Component() {
         </div>
 
         <RecentMessages messages={messages} />
+        <Leaderboard entries={leaderboard} />
       </div>
     </div>
   )
