@@ -30,6 +30,21 @@ const getRankName = (rank: number) => {
   return faceRanks[rank] || rank.toString()
 }
 
+// --- Shared sizing & overlap helpers ---
+export const CARD_SIZE_MAP = {
+  large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
+  largeMoreCards: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28", // same size, different overlap
+  small: "w-10 h-16 sm:w-12 sm:h-18 md:w-14 md:h-20",
+} as const
+
+export const OVERLAP_MAP = {
+  large: "-ml-6 sm:-ml-8 md:-ml-10",
+  largeMoreCards: "-ml-9 sm:-ml-12 md:-ml-15",
+  small: "-ml-4 sm:-ml-5 md:-ml-6",
+} as const
+
+type CardVariant = keyof typeof CARD_SIZE_MAP
+
 interface PlayersTableProps {
   players: Player[]
   currentRoundHands: Record<string, Card[]>
@@ -92,7 +107,7 @@ export function PlayersTable({
   // Helper to render a single card with a flip animation
   const FlipCard: React.FC<{
     card: Card
-    variant: "large" | "small"
+    variant: CardVariant
     idx: number
   }> = ({ card, variant, idx }) => {
     const [flipped, setFlipped] = useState(false)
@@ -103,22 +118,15 @@ export function PlayersTable({
       return () => clearTimeout(t)
     }, [])
 
-    const sizeMap = {
-      large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
-      small: "w-10 h-16 sm:w-12 sm:h-18 md:w-14 md:h-20",
-    } as const
-    const overlapMap = {
-      large: "-ml-6 sm:-ml-8 md:-ml-10",
-      small: "-ml-4 sm:-ml-5 md:-ml-6",
-    } as const
-    const overlap = idx === 0 ? "" : overlapMap[variant]
+    const overlap = idx === 0 ? "" : OVERLAP_MAP[variant]
+    const sizeCls = CARD_SIZE_MAP[variant]
 
     const suitName = getSuitName(card.suit)
     const rankName = getRankName(card.rank)
     const fileName = `${suitName}_${rankName}.svg`
 
     return (
-      <div className={`flip-card relative ${sizeMap[variant]} ${overlap}`}>
+      <div className={`flip-card relative ${sizeCls} ${overlap}`}>
         <div
           className={`flip-card-inner w-full h-full ${flipped ? "flipped" : ""}`}
         >
@@ -149,19 +157,11 @@ export function PlayersTable({
   const renderCardImage = (
     src: string,
     alt: string,
-    variant: "large" | "small",
+    variant: CardVariant,
     idx: number,
   ) => {
-    const sizeMap = {
-      large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
-      small: "w-10 h-16 sm:w-12 sm:h-18 md:w-14 md:h-20",
-    } as const
-    const cls = sizeMap[variant]
-    const overlapMap = {
-      large: "-ml-6 sm:-ml-8 md:-ml-10",
-      small: "-ml-4 sm:-ml-5 md:-ml-6",
-    } as const
-    const overlap = idx === 0 ? "" : overlapMap[variant]
+    const cls = CARD_SIZE_MAP[variant]
+    const overlap = idx === 0 ? "" : OVERLAP_MAP[variant]
     return (
       <div key={idx} className={`relative ${cls} ${overlap}`}>
         <Image src={src} alt={alt} fill className="object-contain" />
@@ -200,8 +200,8 @@ export function PlayersTable({
       </CardHeader>
       <CardContent>
         {isMobile ? (
-          // Mobile layout: simple 2-column grid
-          <div className="grid grid-cols-2 gap-3">
+          // Mobile layout: username, last call, and cards in three columns
+          <div className="grid grid-cols-3 gap-3 items-center">
             {players.map((player) => {
               if (!player) return null
 
@@ -225,6 +225,11 @@ export function PlayersTable({
                   {/* Username column */}
                   <UsernameBox player={player} borderColor={borderColor} />
 
+                  {/* Last call column */}
+                  <span className="text-xs text-gray-300 text-center">
+                    {playerLastCalls[player.user_id] ?? "-"}
+                  </span>
+
                   {/* Cards column */}
                   <div className="flex items-center">
                     {!isEliminated && (
@@ -234,10 +239,11 @@ export function PlayersTable({
                               const suitName = getSuitName(card.suit)
                               const rankName = getRankName(card.rank)
                               const fileName = `${suitName}_${rankName}.svg`
+                              const variant: CardVariant = currentHand!.length >= 4 ? "largeMoreCards" : "large"
                               return renderCardImage(
                                 `cards/${fileName}`,
                                 `${rankName} of ${suitName}`,
-                                "small",
+                                variant,
                                 idx,
                               )
                             })
@@ -247,10 +253,11 @@ export function PlayersTable({
                                   const suitName = getSuitName(card.suit)
                                   const rankName = getRankName(card.rank)
                                   const fileName = `${suitName}_${rankName}.svg`
+                                  const variant: CardVariant = lastHand.length >= 4 ? "largeMoreCards" : "large"
                                   return renderCardImage(
                                     `cards/${fileName}`,
                                     `${rankName} of ${suitName}`,
-                                    "small",
+                                    variant,
                                     idx,
                                   )
                                 })
@@ -258,7 +265,7 @@ export function PlayersTable({
                                   <FlipCard
                                     key={idx}
                                     card={card}
-                                    variant="small"
+                                    variant={lastHand.length >= 4 ? "largeMoreCards" : "large"}
                                     idx={idx}
                                   />
                                 ))
@@ -267,10 +274,11 @@ export function PlayersTable({
                                   const suitName = getSuitName(card.suit)
                                   const rankName = getRankName(card.rank)
                                   const fileName = `${suitName}_${rankName}.svg`
+                                  const variant: CardVariant = yourCards.length >= 4 ? "largeMoreCards" : "large"
                                   return renderCardImage(
                                     `cards/${fileName}`,
                                     `${rankName} of ${suitName}`,
-                                    "small",
+                                    variant,
                                     idx,
                                   )
                                 })
@@ -278,7 +286,7 @@ export function PlayersTable({
                                   renderCardImage(
                                     "cards/back_card.svg",
                                     "Face down card",
-                                    "small",
+                                    player.card_count >= 4 ? "largeMoreCards" : "large",
                                     idx,
                                   ),
                                 )}
@@ -335,10 +343,11 @@ export function PlayersTable({
                             const suitName = getSuitName(card.suit)
                             const rankName = getRankName(card.rank)
                             const fileName = `${suitName}_${rankName}.svg`
+                            const variant: CardVariant = currentHand!.length >= 4 ? "largeMoreCards" : "large"
                             return renderCardImage(
                               `cards/${fileName}`,
                               `${rankName} of ${suitName}`,
-                              "large",
+                              variant,
                               idx,
                             )
                           })
@@ -348,10 +357,11 @@ export function PlayersTable({
                                 const suitName = getSuitName(card.suit)
                                 const rankName = getRankName(card.rank)
                                 const fileName = `${suitName}_${rankName}.svg`
+                                const variant: CardVariant = lastHand.length >= 4 ? "largeMoreCards" : "large"
                                 return renderCardImage(
                                   `cards/${fileName}`,
                                   `${rankName} of ${suitName}`,
-                                  "large",
+                                  variant,
                                   idx,
                                 )
                               })
@@ -359,7 +369,7 @@ export function PlayersTable({
                                 <FlipCard
                                   key={idx}
                                   card={card}
-                                  variant="large"
+                                  variant={lastHand.length >= 4 ? "largeMoreCards" : "large"}
                                   idx={idx}
                                 />
                               ))
@@ -368,10 +378,11 @@ export function PlayersTable({
                                 const suitName = getSuitName(card.suit)
                                 const rankName = getRankName(card.rank)
                                 const fileName = `${suitName}_${rankName}.svg`
+                                const variant: CardVariant = yourCards.length >= 4 ? "largeMoreCards" : "large"
                                 return renderCardImage(
                                   `cards/${fileName}`,
                                   `${rankName} of ${suitName}`,
-                                  "large",
+                                  variant,
                                   idx,
                                 )
                               })
@@ -379,7 +390,7 @@ export function PlayersTable({
                                 renderCardImage(
                                   "cards/back_card.svg",
                                   "Face down card",
-                                  "large",
+                                  player.card_count >= 4 ? "largeMoreCards" : "large",
                                   idx,
                                 ),
                               )}
