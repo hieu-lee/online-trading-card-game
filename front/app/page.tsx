@@ -76,7 +76,6 @@ export default function Component() {
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addMessageHandler(MessageType.USER_JOIN, (data: Record<string, any>) => {
-      console.dir(data)
       if (data.success) {
         setLeaderboard(data.leaderboard || [])
         setUserId(data.user_id)
