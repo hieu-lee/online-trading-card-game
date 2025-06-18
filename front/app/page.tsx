@@ -247,6 +247,11 @@ export default function Component() {
     sendMessage(MessageType.CALL_BLUFF, { user_id: userId })
   }
 
+  const handleKickPlayer = (targetUsername: string) => {
+    if (!isHost) return
+    sendMessage(MessageType.KICK_USER, { host_id: userId, target_username: targetUsername })
+  }
+
   const isYourTurn = gameState?.phase === "playing" && gameState?.current_player_id === userId
   const currentCall = gameState?.current_call?.hand
 
@@ -302,6 +307,8 @@ export default function Component() {
           currentPlayerId={gameState?.current_player_id}
           currentUserId={userId}
           yourCards={yourCards}
+          isHost={isHost}
+          onKickPlayer={handleKickPlayer}
         />
 
         <HostControls

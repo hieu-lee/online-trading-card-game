@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/card"
 // Button import removed - not used in new layout
 import type { Player, Card } from "@/types/game-types"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { X } from "lucide-react"
 
 /* Helper functions duplicated for now; could be centralised */
 const getSuitName = (suit: string) => {
@@ -37,6 +39,8 @@ interface PlayersTableProps {
   currentPlayerId: string | undefined
   currentUserId: string
   yourCards: Card[]
+  isHost: boolean
+  onKickPlayer: (username: string) => void
 }
 
 // Top/Left percentages for 8 seats placed around a circle
@@ -60,7 +64,11 @@ export function PlayersTable({
   currentPlayerId,
   currentUserId,
   yourCards,
+  isHost,
+  onKickPlayer,
 }: PlayersTableProps) {
+  const isMobile = useIsMobile()
+
   // Show previous round hands for 5 seconds once they change
   const [showLastHands, setShowLastHands] = useState(false)
 
@@ -97,7 +105,7 @@ export function PlayersTable({
 
     const sizeMap = {
       large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
-      small: "w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16",
+      small: "w-10 h-16 sm:w-12 sm:h-18 md:w-14 md:h-20",
     } as const
     const overlapMap = {
       large: "-ml-6 sm:-ml-8 md:-ml-10",
@@ -146,7 +154,7 @@ export function PlayersTable({
   ) => {
     const sizeMap = {
       large: "w-12 h-18 sm:w-16 sm:h-24 md:w-20 md:h-28",
-      small: "w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16",
+      small: "w-10 h-16 sm:w-12 sm:h-18 md:w-14 md:h-20",
     } as const
     const cls = sizeMap[variant]
     const overlapMap = {
@@ -161,119 +169,232 @@ export function PlayersTable({
     )
   }
 
+  // Helper to render username box with optional kick icon
+  const UsernameBox: React.FC<{
+    player: Player
+    borderColor: string
+  }> = ({ player, borderColor }) => {
+    const showKick = isHost && player.user_id !== currentUserId
+    return (
+      <div
+        className={`relative px-2 py-1 rounded-md bg-slate-800 text-white text-sm border-2 flex items-center justify-center ${borderColor}`}
+      >
+        {player.username}
+        {showKick && (
+          <button
+            onClick={() => onKickPlayer(player.username)}
+            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-0.5"
+            title="Kick player"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <CardUi className="bg-slate-800 border-green-400/20">
       <CardHeader>
         <CardTitle className="text-green-400 text-lg">Players</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="relative w-full max-w-lg mx-auto mt-4 aspect-square select-none">
-          {/* Poker table */}
-          <div className="absolute inset-0 rounded-full bg-green-800 border-8 border-green-900 shadow-inner" />
+        {isMobile ? (
+          // Mobile layout: simple 2-column grid
+          <div className="grid grid-cols-2 gap-3">
+            {players.map((player) => {
+              if (!player) return null
 
-          {/* Seats */}
-          {seats.map((player, seatIdx) => {
-            const pos = seatPositions[seatIdx]
-            if (!player) {
-              return null // No label for empty seats
-            }
+              const isActiveTurn = gamePhase === "playing" && player.user_id === currentPlayerId
+              const isEliminated = player.is_eliminated
+              const borderColor = isEliminated
+                ? "border-red-600"
+                : isActiveTurn
+                  ? "border-green-500"
+                  : "border-gray-600"
 
-            const isActiveTurn = gamePhase === "playing" && player.user_id === currentPlayerId
-            const isEliminated = player.is_eliminated
-            const borderColor = isEliminated
-              ? "border-red-600"
-              : isActiveTurn
-                ? "border-green-500"
-                : "border-gray-600"
+              // Determine which hand to show and whether to use card backs
+              const currentHand = currentRoundHands[player.user_id]
+              const lastHand = previousRoundHands[player.user_id]
+              const showCurrent = currentHand && currentHand.length > 0
 
-            // Determine which hand to show and whether to use card backs
-            const currentHand = currentRoundHands[player.user_id]
-            const lastHand = previousRoundHands[player.user_id]
-            const showCurrent = currentHand && currentHand.length > 0
+              const isSelf = player.user_id === currentUserId
 
-            // If this is the current user and no "current hand" specified, use yourCards instead of backs
-            const isSelf = player.user_id === currentUserId
+              return (
+                <React.Fragment key={player.user_id}>
+                  {/* Username column */}
+                  <UsernameBox player={player} borderColor={borderColor} />
 
-            return (
-              <div
-                key={player.user_id}
-                className="absolute flex flex-col items-center"
-                style={{ top: pos.top, left: pos.left, transform: pos.transform }}
-              >
-                {/* Username */}
-                <div
-                  className={`px-2 py-1 rounded-md bg-slate-800 text-white text-sm border-2 ${borderColor}`}
-                >
-                  {player.username}
-                </div>
-
-                {/* Card count or current hand (hide if eliminated) */}
-                {!isEliminated && (
-                  <div className="flex mt-1">
-                    {showCurrent
-                      ? currentHand!.map((card, idx) => {
-                          const suitName = getSuitName(card.suit)
-                          const rankName = getRankName(card.rank)
-                          const fileName = `${suitName}_${rankName}.svg`
-                          return renderCardImage(
-                            `cards/${fileName}`,
-                            `${rankName} of ${suitName}`,
-                            "large",
-                            idx,
-                          )
-                        })
-                      : showLastHands && lastHand && lastHand.length > 0
-                        ? isSelf
-                          ? lastHand.map((card, idx) => {
+                  {/* Cards column */}
+                  <div className="flex items-center">
+                    {!isEliminated && (
+                      <>
+                        {showCurrent
+                          ? currentHand!.map((card, idx) => {
                               const suitName = getSuitName(card.suit)
                               const rankName = getRankName(card.rank)
                               const fileName = `${suitName}_${rankName}.svg`
                               return renderCardImage(
                                 `cards/${fileName}`,
                                 `${rankName} of ${suitName}`,
-                                "large",
+                                "small",
                                 idx,
                               )
                             })
-                          : lastHand.map((card, idx) => (
-                              <FlipCard
-                                key={idx}
-                                card={card}
-                                variant="large"
-                                idx={idx}
-                              />
-                            ))
-                        : isSelf
-                          ? yourCards.map((card, idx) => {
-                              const suitName = getSuitName(card.suit)
-                              const rankName = getRankName(card.rank)
-                              const fileName = `${suitName}_${rankName}.svg`
-                              return renderCardImage(
-                                `cards/${fileName}`,
-                                `${rankName} of ${suitName}`,
-                                "large",
-                                idx,
-                              )
-                            })
-                          : [...Array(player.card_count)].map((_, idx) =>
-                              renderCardImage(
-                                "cards/back_card.svg",
-                                "Face down card",
-                                "large",
-                                idx,
-                              ),
-                            )}
+                          : showLastHands && lastHand && lastHand.length > 0
+                            ? isSelf
+                              ? lastHand.map((card, idx) => {
+                                  const suitName = getSuitName(card.suit)
+                                  const rankName = getRankName(card.rank)
+                                  const fileName = `${suitName}_${rankName}.svg`
+                                  return renderCardImage(
+                                    `cards/${fileName}`,
+                                    `${rankName} of ${suitName}`,
+                                    "small",
+                                    idx,
+                                  )
+                                })
+                              : lastHand.map((card, idx) => (
+                                  <FlipCard
+                                    key={idx}
+                                    card={card}
+                                    variant="small"
+                                    idx={idx}
+                                  />
+                                ))
+                            : isSelf
+                              ? yourCards.map((card, idx) => {
+                                  const suitName = getSuitName(card.suit)
+                                  const rankName = getRankName(card.rank)
+                                  const fileName = `${suitName}_${rankName}.svg`
+                                  return renderCardImage(
+                                    `cards/${fileName}`,
+                                    `${rankName} of ${suitName}`,
+                                    "small",
+                                    idx,
+                                  )
+                                })
+                              : [...Array(player.card_count)].map((_, idx) =>
+                                  renderCardImage(
+                                    "cards/back_card.svg",
+                                    "Face down card",
+                                    "small",
+                                    idx,
+                                  ),
+                                )}
+                      </>
+                    )}
                   </div>
-                )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+        ) : (
+          // Desktop layout: existing round table
+          <div className="relative w-full max-w-lg mx-auto mt-4 aspect-square select-none">
+            {/* Poker table */}
+            <div className="absolute inset-0 rounded-full bg-green-800 border-8 border-green-900 shadow-inner" />
 
-                {/* Last call text */}
-                <span className="text-xs text-gray-300 mt-1">
-                  {playerLastCalls[player.user_id] ?? "-"}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+            {/* Seats */}
+            {seats.map((player, seatIdx) => {
+              const pos = seatPositions[seatIdx]
+              if (!player) {
+                return null // No label for empty seats
+              }
+
+              const isActiveTurn = gamePhase === "playing" && player.user_id === currentPlayerId
+              const isEliminated = player.is_eliminated
+              const borderColor = isEliminated
+                ? "border-red-600"
+                : isActiveTurn
+                  ? "border-green-500"
+                  : "border-gray-600"
+
+              // Determine which hand to show and whether to use card backs
+              const currentHand = currentRoundHands[player.user_id]
+              const lastHand = previousRoundHands[player.user_id]
+              const showCurrent = currentHand && currentHand.length > 0
+
+              // If this is the current user and no "current hand" specified, use yourCards instead of backs
+              const isSelf = player.user_id === currentUserId
+
+              return (
+                <div
+                  key={player.user_id}
+                  className="absolute flex flex-col items-center"
+                  style={{ top: pos.top, left: pos.left, transform: pos.transform }}
+                >
+                  {/* Username */}
+                  <UsernameBox player={player} borderColor={borderColor} />
+
+                  {/* Card count or current hand (hide if eliminated) */}
+                  {!isEliminated && (
+                    <div className="flex mt-1">
+                      {showCurrent
+                        ? currentHand!.map((card, idx) => {
+                            const suitName = getSuitName(card.suit)
+                            const rankName = getRankName(card.rank)
+                            const fileName = `${suitName}_${rankName}.svg`
+                            return renderCardImage(
+                              `cards/${fileName}`,
+                              `${rankName} of ${suitName}`,
+                              "large",
+                              idx,
+                            )
+                          })
+                        : showLastHands && lastHand && lastHand.length > 0
+                          ? isSelf
+                            ? lastHand.map((card, idx) => {
+                                const suitName = getSuitName(card.suit)
+                                const rankName = getRankName(card.rank)
+                                const fileName = `${suitName}_${rankName}.svg`
+                                return renderCardImage(
+                                  `cards/${fileName}`,
+                                  `${rankName} of ${suitName}`,
+                                  "large",
+                                  idx,
+                                )
+                              })
+                            : lastHand.map((card, idx) => (
+                                <FlipCard
+                                  key={idx}
+                                  card={card}
+                                  variant="large"
+                                  idx={idx}
+                                />
+                              ))
+                          : isSelf
+                            ? yourCards.map((card, idx) => {
+                                const suitName = getSuitName(card.suit)
+                                const rankName = getRankName(card.rank)
+                                const fileName = `${suitName}_${rankName}.svg`
+                                return renderCardImage(
+                                  `cards/${fileName}`,
+                                  `${rankName} of ${suitName}`,
+                                  "large",
+                                  idx,
+                                )
+                              })
+                            : [...Array(player.card_count)].map((_, idx) =>
+                                renderCardImage(
+                                  "cards/back_card.svg",
+                                  "Face down card",
+                                  "large",
+                                  idx,
+                                ),
+                              )}
+                    </div>
+                  )}
+
+                  {/* Last call text */}
+                  <span className="text-xs text-gray-300 mt-1">
+                    {playerLastCalls[player.user_id] ?? "-"}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </CardContent>
     </CardUi>
   )
