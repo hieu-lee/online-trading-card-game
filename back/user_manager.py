@@ -146,7 +146,8 @@ class DatabaseManager:
         """Get leaderboard sorted by wins"""
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute("""
-                SELECT username, wins, games_played FROM users WHERE games_played <> 0 ORDER BY wins DESC LIMIT 20
+                SELECT username, wins, games_played FROM users WHERE games_played <> 0 
+                ORDER BY wins DESC, games_played, username LIMIT 20
             """) as cursor:
                 rows = await cursor.fetchall()
                 return [
