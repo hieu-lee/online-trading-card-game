@@ -350,7 +350,9 @@ class Game:
 
         return True, "Hand call made successfully"
 
-    async def call_bluff(self, user_id: str) -> Tuple[bool, str, Dict | None]:
+    async def call_bluff(
+        self, user_id: str
+    ) -> Tuple[bool, str, Dict | None]:
         """Player calls bluff on the previous hand call"""
         if (
             not self.current_round
@@ -440,14 +442,11 @@ class Game:
         ):
             await DatabaseManager().save_game_result(
                 game=GameHistory(
-                    id=self.game_id,
                     winner_id=self.winner_id,
                     players=[
                         player.user.id
                         for player in self.players.values()
                     ],
-                    started_at=self.started_at,
-                    ended_at=self.ended_at,
                 )
             )
 
@@ -589,7 +588,9 @@ def make_hand_call(
     return game_instance.make_hand_call(user_id, hand)
 
 
-async def call_bluff(user_id: str) -> Tuple[bool, str, Optional[Dict]]:
+async def call_bluff(
+    user_id: str,
+) -> Tuple[bool, str, Optional[Dict]]:
     """Call bluff"""
     return await game_instance.call_bluff(user_id)
 

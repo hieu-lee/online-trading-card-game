@@ -39,11 +39,8 @@ class LeaderboardEntry:
 class GameHistory:
     """Represents a single game history entry"""
 
-    id: str
     winner_id: str
     players: List[str]  # List of user IDs
-    started_at: datetime
-    ended_at: datetime
 
 
 class DatabaseManager:
@@ -60,32 +57,13 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS users (
                     id TEXT PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
+                    wins INTEGER DEFAULT 0,
+                    games_played INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
-            # Game history table
-            _ = await db.execute("""
-                CREATE TABLE IF NOT EXISTS game_history (
-                    id TEXT PRIMARY KEY,
-                    winner_id TEXT NOT NULL, -- winner id
-                    started_at TIMESTAMP,
-                    ended_at TIMESTAMP,
-                    FOREIGN KEY (winner_id) REFERENCES users(id)
-                )
-            """)
-
-            # Game history table
-            _ = await db.execute("""
-                CREATE TABLE IF NOT EXISTS game_players (
-                    game_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    FOREIGN KEY (game_id) REFERENCES game_history(id),
-                    FOREIGN KEY (user_id) REFERENCES users(id),
-                    PRIMARY KEY (game_id, user_id)
-                );
-            """)
             await db.commit()
 
     async def get_user_by_username(
@@ -148,24 +126,18 @@ class DatabaseManager:
     async def save_game_result(self, game: GameHistory):
         """Save game result to history"""
         async with aiosqlite.connect(self.db_path) as db:
-            # Insert the game record using the provided UUID
+            # Update winner's wins
             await db.execute(
-                "INSERT INTO game_history (id, winner_id, started_at, ended_at) VALUES (?, ?, ?, ?)",
-                (
-                    game.id,  # UUID string
-                    game.winner_id,
-                    game.started_at.isoformat(),
-                    game.ended_at.isoformat(),
-                ),
+                "UPDATE users SET wins = wins + 1 WHERE id = ?",
+                (game.winner_id,),
             )
 
-            # Insert each player into game_players using the UUID
-            for player_id in game.players:
-                await db.execute(
-                    "INSERT INTO game_players (game_id, user_id) VALUES (?, ?)",
-                    (game.id, player_id),
-                )
-
+            # Update games_played for all players
+            placeholders = ",".join("?" * len(game.players))
+            await db.execute(
+                f"UPDATE users SET games_played = games_played + 1 WHERE id IN ({placeholders})",
+                game.players,
+            )
             await db.commit()
 
     async def get_leaderboard(
@@ -174,17 +146,7 @@ class DatabaseManager:
         """Get leaderboard sorted by wins"""
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute("""
-                SELECT 
-                    u.username,
-                    COUNT(DISTINCT CASE WHEN gh.winner_id = u.id THEN gh.id END) as wins,
-                    COUNT(DISTINCT gp.game_id) as games_played
-                FROM users u
-                LEFT JOIN game_players gp ON u.id = gp.user_id
-                LEFT JOIN game_history gh ON gp.game_id = gh.id
-                GROUP BY u.id, u.username
-                HAVING games_played > 0
-                ORDER BY wins DESC, games_played DESC
-                LIMIT 20
+                SELECT username, wins, games_played FROM users WHERE games_played <> 0 ORDER BY wins DESC LIMIT 20
             """) as cursor:
                 rows = await cursor.fetchall()
                 return [
