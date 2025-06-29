@@ -1,0 +1,13 @@
+__pycache__/
+.DS_Store
+build/
+dist/
+front/
+dist-multi/
+.pytest_cache/
+.cursor/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.spec 
