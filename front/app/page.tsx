@@ -6,6 +6,7 @@ import { Club, Diamond, Spade, Heart } from "lucide-react"
 
 import { useWebSocket } from "@/hooks/use-websocket"
 import { UsernameDialog } from "@/components/UsernameDialog"
+import { SessionSelector } from "@/components/SessionSelector"
 import { HandInput } from "@/components/HandInput"
 import { MessageType, type GameState, type Card, type Player } from "@/types/game-types"
 import { UserStatusCard } from "@/components/UserStatusCard"
@@ -26,13 +27,18 @@ import { Leaderboard } from "@/components/leaderboard"
 import { toast } from "sonner"
 
 // local
-// const WS_URL = "ws://localhost:8765"
+const WS_URL = "ws://localhost:8765"
 // staging
-const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
+// const WS_URL = "wss://online-trading-card-game-production.up.railway.app"
 // prod
 // const WS_URL = "wss://online-trading-card-game-production-dec2.up.railway.app"
 
 export default function Component() {
+  // Session state
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionError, setSessionError] = useState("")
+  const [isJoiningSession, setIsJoiningSession] = useState(false)
+
   const {
     showUsernameDialog,
     setShowUsernameDialog,
@@ -74,6 +80,53 @@ export default function Component() {
 
   // Message handlers
   useEffect(() => {
+    // Session message handlers
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any  
+    addMessageHandler(MessageType.SESSION_CREATED, (data: Record<string, any>) => {
+      if (data.success && data.session_id) {
+        setSessionId(data.session_id)
+        setSessionError("")
+        setUserId(data.user_id)
+        setUsername(data.username)
+        setIsHost(data.is_host || false)
+        setLeaderboard(data.leaderboard || [])
+        setShowUsernameDialog(false) // Hide username dialog
+        addMessage(`Session ${data.session_id} created successfully!`)
+        if (data.is_host) {
+          addMessage("You are the host!")
+        }
+      } else {
+        setSessionError(data.message || "Failed to create session")
+      }
+      setIsJoiningSession(false)
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    addMessageHandler(MessageType.SESSION_JOINED, (data: Record<string, any>) => {
+      if (data.success && data.session_id) {
+        setSessionId(data.session_id)
+        setSessionError("")
+        setUserId(data.user_id)
+        setUsername(data.username)
+        setIsHost(data.is_host || false)
+        setLeaderboard(data.leaderboard || [])
+        setShowUsernameDialog(false) // Hide username dialog
+        addMessage(`Joined session ${data.session_id} successfully!`)
+        if (data.is_host) {
+          addMessage("You are the host!")
+        }
+      } else {
+        setSessionError(data.message || "Failed to join session")
+      }
+      setIsJoiningSession(false)
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    addMessageHandler(MessageType.SESSION_ERROR, (data: Record<string, any>) => {
+      setSessionError(data.message || "Session error")
+      setIsJoiningSession(false)
+    })
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addMessageHandler(MessageType.USER_JOIN, (data: Record<string, any>) => {
       if (data.success) {
@@ -220,6 +273,33 @@ export default function Component() {
     })
   }, [addMessageHandler, userId, disconnect, addMessage])
 
+  // Session handlers
+  const handleCreateSession = useCallback(
+    async (username: string) => {
+      setIsJoiningSession(true)
+      setSessionError("")
+
+      if (!isConnected) {
+        await connect()
+      }
+      sendMessage(MessageType.CREATE_SESSION, { username })
+    },
+    [isConnected, connect, sendMessage],
+  )
+
+  const handleJoinSession = useCallback(
+    async (sessionIdInput: string, username: string) => {
+      setIsJoiningSession(true)
+      setSessionError("")
+
+      if (!isConnected) {
+        await connect()
+      }
+      sendMessage(MessageType.JOIN_SESSION, { session_id: sessionIdInput, username })
+    },
+    [isConnected, connect, sendMessage],
+  )
+
   const handleUsernameSubmit = useCallback(
     async (usernameInput: string) => {
       setIsConnecting(true)
@@ -234,31 +314,43 @@ export default function Component() {
   )
 
   const handleStartGame = () => {
-    sendMessage(MessageType.GAME_START, { user_id: userId })
+    sendMessage(MessageType.GAME_START, { user_id: userId }, sessionId || undefined)
   }
 
   const handleRestartGame = () => {
-    sendMessage(MessageType.GAME_RESTART, { user_id: userId })
+    sendMessage(MessageType.GAME_RESTART, { user_id: userId }, sessionId || undefined)
   }
 
   const handleCallHand = (handSpec: string) => {
     sendMessage(MessageType.CALL_HAND, {
       user_id: userId,
       hand_spec: handSpec,
-    })
+    }, sessionId || undefined)
   }
 
   const handleCallBluff = () => {
-    sendMessage(MessageType.CALL_BLUFF, { user_id: userId })
+    sendMessage(MessageType.CALL_BLUFF, { user_id: userId }, sessionId || undefined)
   }
 
   const handleKickPlayer = (targetUsername: string) => {
     if (!isHost) return
-    sendMessage(MessageType.KICK_USER, { host_id: userId, target_username: targetUsername })
+    sendMessage(MessageType.KICK_USER, { host_id: userId, target_username: targetUsername }, sessionId || undefined)
   }
 
   const isYourTurn = gameState?.phase === "playing" && gameState?.current_player_id === userId
   const currentCall = gameState?.current_call?.hand
+
+  // Show session selector if no session is active
+  if (!sessionId) {
+    return (
+      <SessionSelector
+        onCreateSession={handleCreateSession}
+        onJoinSession={handleJoinSession}
+        isLoading={isJoiningSession}
+        error={sessionError}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-green-400 p-6 font-mono">
@@ -271,12 +363,17 @@ export default function Component() {
 
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-2xl text-green-400 flex items-center justify-center gap-2">
-          <Club className="h-6 w-6" />
-          <Diamond className="h-6 w-6" />
-          Online Card Game
-          <Spade className="h-6 w-6" />
-          <Heart className="h-6 w-6" />
+        <div className="text-center space-y-2">
+          <div className="text-2xl text-green-400 flex items-center justify-center gap-2">
+            <Club className="h-6 w-6" />
+            <Diamond className="h-6 w-6" />
+            Online Card Game
+            <Spade className="h-6 w-6" />
+            <Heart className="h-6 w-6" />
+          </div>
+          <div className="text-sm text-slate-400">
+            Session: <span className="text-green-400 font-semibold">{sessionId}</span>
+          </div>
         </div>
 
         {/* Connection Status */}

@@ -60,9 +60,9 @@ export function useWebSocket(url: string) {
     }
   }, [])
 
-  const sendMessage = useCallback((type: MessageType, data: any) => {
+  const sendMessage = useCallback((type: MessageType, data: any, sessionId?: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const message = { type, data }
+      const message = { type, data, session_id: sessionId }
       wsRef.current.send(JSON.stringify(message))
     }
   }, [])

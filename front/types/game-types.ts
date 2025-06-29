@@ -25,6 +25,7 @@ export interface GameState {
 export interface GameMessage {
   type: string
   data: any
+  session_id?: string
 }
 
 export interface LeaderboardEntry {
@@ -34,8 +35,18 @@ export interface LeaderboardEntry {
 }
 
 export enum MessageType {
+  // Session management
+  CREATE_SESSION = "create_session",
+  JOIN_SESSION = "join_session", 
+  SESSION_CREATED = "session_created",
+  SESSION_JOINED = "session_joined",
+  SESSION_ERROR = "session_error",
+  
+  // Legacy user join (for backwards compatibility)
   USER_JOIN = "user_join",
   USERNAME_ERROR = "username_error",
+  
+  // Game messages
   GAME_STATE_UPDATE = "game_state_update",
   PLAYER_UPDATE = "player_update",
   GAME_START = "game_start",

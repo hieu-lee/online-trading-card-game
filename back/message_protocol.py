@@ -18,6 +18,14 @@ class MessageType(str, Enum):
     USER_KICKED = "user_kicked"
     USERNAME_ERROR = "username_error"
     
+    # Session messages
+    CREATE_SESSION = "create_session"
+    JOIN_SESSION = "join_session"
+    SESSION_CREATED = "session_created"
+    SESSION_JOINED = "session_joined"
+    SESSION_ERROR = "session_error"
+    SESSION_LIST = "session_list"
+    
     # Game state messages
     GAME_START = "game_start"
     GAME_END = "game_end"
@@ -48,6 +56,7 @@ class BaseMessage(BaseModel):
     type: MessageType
     timestamp: datetime = Field(default_factory=datetime.now)
     data: Dict[str, Any] = Field(default_factory=dict)
+    session_id: Optional[str] = None  # Add session context
     
     model_config = {
         "json_encoders": {
@@ -133,9 +142,46 @@ class ShowCardsMessage(BaseModel):
     cards: List[Dict[str, Any]]
 
 
-def create_message(msg_type: MessageType, data: Dict[str, Any]) -> Dict[str, Any]:
+class CreateSessionMessage(BaseModel):
+    """Message to create a new game session"""
+    username: str = Field(min_length=1, max_length=20)
+
+
+class JoinSessionMessage(BaseModel):
+    """Message to join an existing game session"""
+    session_id: str = Field(min_length=4, max_length=6)
+    username: str = Field(min_length=1, max_length=20)
+
+
+class SessionCreatedMessage(BaseModel):
+    """Response when a session is successfully created"""
+    session_id: str
+    success: bool = True
+    message: str
+
+
+class SessionJoinedMessage(BaseModel):
+    """Response when successfully joined a session"""
+    session_id: str
+    success: bool = True
+    message: str
+
+
+class SessionErrorMessage(BaseModel):
+    """Error message for session operations"""
+    success: bool = False
+    message: str
+    error_code: str
+
+
+class SessionListMessage(BaseModel):
+    """List of available sessions"""
+    sessions: List[Dict[str, Any]]
+
+
+def create_message(msg_type: MessageType, data: Dict[str, Any], session_id: Optional[str] = None) -> Dict[str, Any]:
     """Create a standardized message dictionary"""
-    message = BaseMessage(type=msg_type, data=data)
+    message = BaseMessage(type=msg_type, data=data, session_id=session_id)
     return message.model_dump(mode='json')
 
 
