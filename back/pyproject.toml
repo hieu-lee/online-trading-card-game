@@ -9,3 +9,9 @@ dependencies = []
 
 [tool.ruff]
 line-length = 60
+
+[tool.basedpyright]
+typeCheckingMode = "basic"
+
+[tool.pyright]
+typeCheckingMode = "basic"
