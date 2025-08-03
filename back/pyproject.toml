@@ -1,0 +1,17 @@
+[project]
+name = "back"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+
+[tool.ruff]
+line-length = 60
+
+[tool.basedpyright]
+typeCheckingMode = "basic"
+
+[tool.pyright]
+typeCheckingMode = "basic"

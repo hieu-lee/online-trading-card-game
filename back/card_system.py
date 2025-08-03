@@ -80,7 +80,10 @@ class Card:
     def __eq__(self, other) -> bool:
         if not isinstance(other, Card):
             return False
-        return self.suit == other.suit and self.rank == other.rank
+        return (
+            self.suit == other.suit
+            and self.rank == other.rank
+        )
 
     def __hash__(self) -> int:
         return hash((self.suit, self.rank))
@@ -94,9 +97,15 @@ class PokerHand:
     primary_rank: Optional[Rank] = (
         None  # For pair, three of a kind, four of a kind, straight
     )
-    secondary_rank: Optional[Rank] = None  # For two pairs, full house
-    suit: Optional[Suit] = None  # For flush, straight flush, royal flush
-    ranks: Optional[List[Rank]] = None  # For flush (all 5 ranks)
+    secondary_rank: Optional[Rank] = (
+        None  # For two pairs, full house
+    )
+    suit: Optional[Suit] = (
+        None  # For flush, straight flush, royal flush
+    )
+    ranks: Optional[List[Rank]] = (
+        None  # For flush (all 5 ranks)
+    )
 
     def __str__(self) -> str:
         """String representation of the poker hand call"""
@@ -117,9 +126,13 @@ class PokerHand:
         }
 
         if self.hand_type == HandType.HIGH_CARD:
-            return f"High Card {rank_names[self.primary_rank]}"
+            return (
+                f"High Card {rank_names[self.primary_rank]}"
+            )
         elif self.hand_type == HandType.PAIR:
-            return f"Pair of {rank_names[self.primary_rank]}s"
+            return (
+                f"Pair of {rank_names[self.primary_rank]}s"
+            )
         elif self.hand_type == HandType.TWO_PAIRS:
             return f"Two Pairs: {rank_names[self.primary_rank]}s and {rank_names[self.secondary_rank]}s"
         elif self.hand_type == HandType.THREE_OF_A_KIND:
@@ -128,7 +141,12 @@ class PokerHand:
             return f"Straight from {rank_names[self.primary_rank]}"
         elif self.hand_type == HandType.FLUSH:
             rank_str = ",".join(
-                [rank_names[r] for r in sorted(self.ranks, reverse=True)]
+                [
+                    rank_names[r]
+                    for r in sorted(
+                        self.ranks, reverse=True
+                    )
+                ]
             )
             return f"Flush of {self.suit.name.title()}: {rank_str}"
         elif self.hand_type == HandType.FULL_HOUSE:
@@ -185,7 +203,9 @@ class HandValidator:
     """Validates and detects poker hands from a collection of cards"""
 
     @staticmethod
-    def get_rank_counts(cards: List[Card]) -> Dict[Rank, int]:
+    def get_rank_counts(
+        cards: List[Card],
+    ) -> Dict[Rank, int]:
         """Count occurrences of each rank"""
         counts = {}
         for card in cards:
@@ -193,7 +213,9 @@ class HandValidator:
         return counts
 
     @staticmethod
-    def get_suit_counts(cards: List[Card]) -> Dict[Suit, int]:
+    def get_suit_counts(
+        cards: List[Card],
+    ) -> Dict[Suit, int]:
         """Count occurrences of each suit"""
         counts = {}
         for card in cards:
@@ -201,17 +223,24 @@ class HandValidator:
         return counts
 
     @staticmethod
-    def validate_hand_call(hand_call: PokerHand, all_cards: List[Card]) -> bool:
+    def validate_hand_call(
+        hand_call: PokerHand, all_cards: List[Card]
+    ) -> bool:
         """Validate if a specific hand call exists in the collection of cards"""
         if hand_call.hand_type == HandType.HIGH_CARD:
-            return hand_call.primary_rank in [card.rank for card in all_cards]
-        rank_counts = Counter([card.rank for card in all_cards])
+            return hand_call.primary_rank in [
+                card.rank for card in all_cards
+            ]
+        rank_counts = Counter(
+            [card.rank for card in all_cards]
+        )
         if hand_call.hand_type == HandType.PAIR:
             return rank_counts[hand_call.primary_rank] >= 2
         if hand_call.hand_type == HandType.TWO_PAIRS:
             return (
                 rank_counts[hand_call.primary_rank] >= 2
-                and rank_counts[hand_call.secondary_rank] >= 2
+                and rank_counts[hand_call.secondary_rank]
+                >= 2
             )
         if hand_call.hand_type == HandType.THREE_OF_A_KIND:
             return rank_counts[hand_call.primary_rank] >= 3
@@ -220,11 +249,17 @@ class HandValidator:
         if hand_call.hand_type == HandType.FULL_HOUSE:
             return (
                 rank_counts[hand_call.primary_rank] >= 3
-                and rank_counts[hand_call.secondary_rank] >= 2
+                and rank_counts[hand_call.secondary_rank]
+                >= 2
             )
         if hand_call.hand_type == HandType.STRAIGHT:
-            hand_call.ranks = [hand_call.primary_rank + i for i in range(5)]
-            return all(rank_counts[rank] >= 1 for rank in hand_call.ranks)
+            hand_call.ranks = [
+                hand_call.primary_rank + i for i in range(5)
+            ]
+            return all(
+                rank_counts[rank] >= 1
+                for rank in hand_call.ranks
+            )
         if hand_call.hand_type == HandType.FLUSH:
             suit_ranks = dict()
             for card in all_cards:
@@ -232,31 +267,47 @@ class HandValidator:
                     suit_ranks[card.suit] = set()
                 suit_ranks[card.suit].add(card.rank)
             return hand_call.suit in suit_ranks and all(
-                hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5)
+                hand_call.ranks[i]
+                in suit_ranks[hand_call.suit]
+                for i in range(5)
             )
         if hand_call.hand_type == HandType.STRAIGHT_FLUSH:
-            hand_call.ranks = [hand_call.primary_rank + i for i in range(5)]
+            hand_call.ranks = [
+                hand_call.primary_rank + i for i in range(5)
+            ]
             suit_ranks = dict()
             for card in all_cards:
                 if card.suit not in suit_ranks:
                     suit_ranks[card.suit] = set()
                 suit_ranks[card.suit].add(card.rank)
             return hand_call.suit in suit_ranks and all(
-                hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5)
+                hand_call.ranks[i]
+                in suit_ranks[hand_call.suit]
+                for i in range(5)
             )
         if hand_call.hand_type == HandType.ROYAL_FLUSH:
-            hand_call.ranks = [Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]
+            hand_call.ranks = [
+                Rank.TEN,
+                Rank.JACK,
+                Rank.QUEEN,
+                Rank.KING,
+                Rank.ACE,
+            ]
             suit_ranks = dict()
             for card in all_cards:
                 if card.suit not in suit_ranks:
                     suit_ranks[card.suit] = set()
                 suit_ranks[card.suit].add(card.rank)
             return hand_call.suit in suit_ranks and all(
-                hand_call.ranks[i] in suit_ranks[hand_call.suit] for i in range(5)
+                hand_call.ranks[i]
+                in suit_ranks[hand_call.suit]
+                for i in range(5)
             )
 
     @staticmethod
-    def hands_match(hand1: PokerHand, hand2: PokerHand) -> bool:
+    def hands_match(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> bool:
         """Check if two poker hands are the same"""
         if hand1.hand_type != hand2.hand_type:
             return False
@@ -272,19 +323,27 @@ class HandValidator:
         if hand1.hand_type == HandType.TWO_PAIRS:
             return (
                 hand1.primary_rank == hand2.primary_rank
-                and hand1.secondary_rank == hand2.secondary_rank
+                and hand1.secondary_rank
+                == hand2.secondary_rank
             )
 
         if hand1.hand_type == HandType.FULL_HOUSE:
             return (
                 hand1.primary_rank == hand2.primary_rank
-                and hand1.secondary_rank == hand2.secondary_rank
+                and hand1.secondary_rank
+                == hand2.secondary_rank
             )
 
-        if hand1.hand_type in [HandType.STRAIGHT, HandType.STRAIGHT_FLUSH]:
+        if hand1.hand_type in [
+            HandType.STRAIGHT,
+            HandType.STRAIGHT_FLUSH,
+        ]:
             return hand1.primary_rank == hand2.primary_rank
 
-        if hand1.hand_type in [HandType.FLUSH, HandType.ROYAL_FLUSH]:
+        if hand1.hand_type in [
+            HandType.FLUSH,
+            HandType.ROYAL_FLUSH,
+        ]:
             return hand1.suit == hand2.suit
 
         return False
@@ -294,7 +353,9 @@ class HandComparator:
     """Compares poker hands according to game rules"""
 
     @staticmethod
-    def compare_hands(hand1: PokerHand, hand2: PokerHand) -> int:
+    def compare_hands(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> int:
         """
         Compare two poker hands
         Returns: 1 if hand1 > hand2, -1 if hand1 < hand2, 0 if equal
@@ -314,16 +375,24 @@ class HandComparator:
             HandType.STRAIGHT,
             HandType.STRAIGHT_FLUSH,
         ]:
-            return HandComparator._compare_by_primary_rank(hand1, hand2)
+            return HandComparator._compare_by_primary_rank(
+                hand1, hand2
+            )
 
         elif hand1.hand_type == HandType.TWO_PAIRS:
-            return HandComparator._compare_two_pairs(hand1, hand2)
+            return HandComparator._compare_two_pairs(
+                hand1, hand2
+            )
 
         elif hand1.hand_type == HandType.FULL_HOUSE:
-            return HandComparator._compare_full_house(hand1, hand2)
+            return HandComparator._compare_full_house(
+                hand1, hand2
+            )
 
         elif hand1.hand_type == HandType.FLUSH:
-            return HandComparator._compare_flush(hand1, hand2)
+            return HandComparator._compare_flush(
+                hand1, hand2
+            )
 
         elif hand1.hand_type == HandType.ROYAL_FLUSH:
             return 0  # All royal flushes are equal in this game
@@ -331,8 +400,15 @@ class HandComparator:
         return 0
 
     @staticmethod
-    def _compare_by_primary_rank(hand1: PokerHand, hand2: PokerHand) -> int:
+    def _compare_by_primary_rank(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> int:
         """Compare hands by primary rank"""
+        if (
+            hand1.primary_rank is None
+            or hand2.primary_rank is None
+        ):
+            return 0
         if hand1.primary_rank > hand2.primary_rank:
             return 1
         elif hand1.primary_rank < hand2.primary_rank:
@@ -340,8 +416,17 @@ class HandComparator:
         return 0
 
     @staticmethod
-    def _compare_two_pairs(hand1: PokerHand, hand2: PokerHand) -> int:
+    def _compare_two_pairs(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> int:
         """Compare two pairs hands"""
+        if (
+            hand1.primary_rank is None
+            or hand2.primary_rank is None
+            or hand1.secondary_rank is None
+            or hand2.secondary_rank is None
+        ):
+            return 0
         min1 = min(hand1.primary_rank, hand1.secondary_rank)
         min2 = min(hand2.primary_rank, hand2.secondary_rank)
         max1 = max(hand1.primary_rank, hand1.secondary_rank)
@@ -356,7 +441,9 @@ class HandComparator:
         return 0
 
     @staticmethod
-    def _compare_full_house(hand1: PokerHand, hand2: PokerHand) -> int:
+    def _compare_full_house(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> int:
         """Compare full house hands"""
         # First compare three of a kind
         if hand1.primary_rank > hand2.primary_rank:
@@ -373,7 +460,9 @@ class HandComparator:
         return 0
 
     @staticmethod
-    def _compare_flush(hand1: PokerHand, hand2: PokerHand) -> int:
+    def _compare_flush(
+        hand1: PokerHand, hand2: PokerHand
+    ) -> int:
         """Compare flush hands by highest card"""
         max1 = max(hand1.ranks) if hand1.ranks else Rank.TWO
         max2 = max(hand2.ranks) if hand2.ranks else Rank.TWO
@@ -385,9 +474,16 @@ class HandComparator:
         return 0
 
     @staticmethod
-    def is_valid_next_call(current_call: PokerHand, next_call: PokerHand) -> bool:
+    def is_valid_next_call(
+        current_call: PokerHand, next_call: PokerHand
+    ) -> bool:
         """Check if next_call is a valid higher call than current_call"""
-        return HandComparator.compare_hands(next_call, current_call) > 0
+        return (
+            HandComparator.compare_hands(
+                next_call, current_call
+            )
+            > 0
+        )
 
 
 class HandParser:
@@ -415,20 +511,30 @@ class HandParser:
         m = re.match(r"^royal flush\s+(\w+)", s)
         if m:
             suit = HandParser._parse_suit(m.group(1))
-            return PokerHand(HandType.ROYAL_FLUSH, suit=suit)
+            return PokerHand(
+                HandType.ROYAL_FLUSH, suit=suit
+            )
 
         # Straight Flush
-        m = re.match(r"^straight flush\s+(\w+)\s+from\s+(\w+)", s)
+        m = re.match(
+            r"^straight flush\s+(\w+)\s+from\s+(\w+)", s
+        )
         if m:
             suit = HandParser._parse_suit(m.group(1))
             rank = HandParser._parse_rank(m.group(2))
-            return PokerHand(HandType.STRAIGHT_FLUSH, suit=suit, primary_rank=rank)
+            return PokerHand(
+                HandType.STRAIGHT_FLUSH,
+                suit=suit,
+                primary_rank=rank,
+            )
 
         # Straight
         m = re.match(r"^straight\s+from\s+(\w+)", s)
         if m:
             rank = HandParser._parse_rank(m.group(1))
-            return PokerHand(HandType.STRAIGHT, primary_rank=rank)
+            return PokerHand(
+                HandType.STRAIGHT, primary_rank=rank
+            )
 
         # Flush (new syntax without "of" and with space-separated ranks)
         m = re.match(r"^flush\s+(\w+)(?:\s+([\w\s]+))$", s)
@@ -437,45 +543,84 @@ class HandParser:
             ranks_str = m.group(2).strip()
             rank_tokens = re.split(r"[\s]+", ranks_str)
             if len(rank_tokens) != 5:
-                raise ValueError("Flush must specify exactly 5 ranks")
-            ranks = [HandParser._parse_rank(r) for r in rank_tokens]
-            return PokerHand(HandType.FLUSH, suit=suit, ranks=ranks)
+                raise ValueError(
+                    "Flush must specify exactly 5 ranks"
+                )
+            ranks = [
+                HandParser._parse_rank(r)
+                for r in rank_tokens
+            ]
+            return PokerHand(
+                HandType.FLUSH, suit=suit, ranks=ranks
+            )
 
         # Flush (legacy syntax with "of" and optional punctuation)
-        m = re.match(r"^flush\s+of\s+(\w+)[\s\:\-,]*(.*)", s)
+        m = re.match(
+            r"^flush\s+of\s+(\w+)[\s\:\-,]*(.*)", s
+        )
         if m:
             suit = HandParser._parse_suit(m.group(1))
             ranks_str = m.group(2)
             rank_tokens = re.split(r"[,\s]+", ranks_str)
-            ranks = [HandParser._parse_rank(r) for r in rank_tokens if r]
-            return PokerHand(HandType.FLUSH, suit=suit, ranks=ranks)
+            ranks = [
+                HandParser._parse_rank(r)
+                for r in rank_tokens
+                if r
+            ]
+            return PokerHand(
+                HandType.FLUSH, suit=suit, ranks=ranks
+            )
 
         # Full House
-        m = re.match(r"^full house[\s\:\-,]*3\s+(\w+)\s+and\s+2\s+(\w+)", s)
+        m = re.match(
+            r"^full house[\s\:\-,]*3\s+(\w+)\s+and\s+2\s+(\w+)",
+            s,
+        )
         if m:
             r1 = HandParser._parse_rank(m.group(1))
             r2 = HandParser._parse_rank(m.group(2))
-            return PokerHand(HandType.FULL_HOUSE, primary_rank=r1, secondary_rank=r2)
+            return PokerHand(
+                HandType.FULL_HOUSE,
+                primary_rank=r1,
+                secondary_rank=r2,
+            )
 
         # Two Pairs
-        m = re.match(r"^(?:two pairs?)[\s\:\-,]*(\w+)\s+and\s+(\w+)", s)
+        m = re.match(
+            r"^(?:two pairs?)[\s\:\-,]*(\w+)\s+and\s+(\w+)",
+            s,
+        )
         if m:
             r1 = HandParser._parse_rank(m.group(1))
             r2 = HandParser._parse_rank(m.group(2))
             hi, lo = max(r1, r2), min(r1, r2)
-            return PokerHand(HandType.TWO_PAIRS, primary_rank=hi, secondary_rank=lo)
+            return PokerHand(
+                HandType.TWO_PAIRS,
+                primary_rank=hi,
+                secondary_rank=lo,
+            )
 
         # Three of a Kind
-        m = re.match(r"^(?:three of a kind|3 of a kind)[\s\:\-,]*(\w+)", s)
+        m = re.match(
+            r"^(?:three of a kind|3 of a kind)[\s\:\-,]*(\w+)",
+            s,
+        )
         if m:
             r = HandParser._parse_rank(m.group(1))
-            return PokerHand(HandType.THREE_OF_A_KIND, primary_rank=r)
+            return PokerHand(
+                HandType.THREE_OF_A_KIND, primary_rank=r
+            )
 
         # Four of a Kind
-        m = re.match(r"^(?:four of a kind|4 of a kind)[\s\:\-,]*(\w+)", s)
+        m = re.match(
+            r"^(?:four of a kind|4 of a kind)[\s\:\-,]*(\w+)",
+            s,
+        )
         if m:
             r = HandParser._parse_rank(m.group(1))
-            return PokerHand(HandType.FOUR_OF_A_KIND, primary_rank=r)
+            return PokerHand(
+                HandType.FOUR_OF_A_KIND, primary_rank=r
+            )
 
         # Pair
         m = re.match(r"^(?:pair of|pair)[\s\:\-,]*(\w+)", s)
@@ -484,12 +629,18 @@ class HandParser:
             return PokerHand(HandType.PAIR, primary_rank=r)
 
         # High Card
-        m = re.match(r"^(?:high card|highcard)[\s\:\-,]*(\w+)", s)
+        m = re.match(
+            r"^(?:high card|highcard)[\s\:\-,]*(\w+)", s
+        )
         if m:
             r = HandParser._parse_rank(m.group(1))
-            return PokerHand(HandType.HIGH_CARD, primary_rank=r)
+            return PokerHand(
+                HandType.HIGH_CARD, primary_rank=r
+            )
 
-        raise ValueError(f"Cannot parse hand specification: {spec}")
+        raise ValueError(
+            f"Cannot parse hand specification: {spec}"
+        )
 
     @staticmethod
     def _parse_rank(token: str) -> Rank:

@@ -16,8 +16,14 @@ from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from card_system import Deck, Card, PokerHand, HandValidator, HandComparator
-from user_manager import User
+from card_system import (
+    Deck,
+    Card,
+    PokerHand,
+    HandValidator,
+    HandComparator,
+)
+from user_manager import DatabaseManager, User, GameHistory
 
 
 class GamePhase(Enum):
@@ -82,14 +88,24 @@ class Round:
             return self.hand_calls[-1]
         return None
 
-    def get_next_player_id(self, current_player_id: str) -> str:
+    def get_next_player_id(
+        self, current_player_id: str
+    ) -> str:
         """Get the next player in turn order"""
-        active_players = [p for p in self.players if not p.is_eliminated]
+        active_players = [
+            p for p in self.players if not p.is_eliminated
+        ]
         current_index = next(
-            (i for i, p in enumerate(active_players) if p.user.id == current_player_id),
+            (
+                i
+                for i, p in enumerate(active_players)
+                if p.user.id == current_player_id
+            ),
             0,
         )
-        next_index = (current_index + 1) % len(active_players)
+        next_index = (current_index + 1) % len(
+            active_players
+        )
         return active_players[next_index].user.id
 
 
@@ -99,14 +115,20 @@ class Game:
     def __init__(self):
         self.game_id = str(uuid.uuid4())
         self.phase = GamePhase.WAITING
-        self.players: Dict[str, Player] = {}  # user_id -> Player
-        self.player_order: List[str] = []  # Ordered list of player IDs
+        self.players: Dict[
+            str, Player
+        ] = {}  # user_id -> Player
+        self.player_order: List[
+            str
+        ] = []  # Ordered list of player IDs
         self.current_round: Optional[Round] = None
         self.round_number = 0
         self.winner_id: Optional[str] = None
         self.started_at: Optional[datetime] = None
         self.ended_at: Optional[datetime] = None
-        self.waiting_players: List[str] = []  # Players waiting to join next game
+        self.waiting_players: List[
+            str
+        ] = []  # Players waiting to join next game
 
     def add_player(self, user: User) -> bool:
         """Add a player to the game"""
@@ -125,7 +147,7 @@ class Game:
 
         return True
 
-    def remove_player(self, user_id: str):
+    async def remove_player(self, user_id: str):
         """Remove a player from the game"""
         # Remove from active players and current round if in progress
         if user_id in self.players:
@@ -133,12 +155,17 @@ class Game:
             if self.current_round:
                 # Remove player from current round's player list
                 self.current_round.players = [
-                    p for p in self.current_round.players if p.user.id != user_id
+                    p
+                    for p in self.current_round.players
+                    if p.user.id != user_id
                 ]
                 # If it was this player's turn, move to the next player
-                if self.current_round.current_player_id == user_id:
-                    self.current_round.current_player_id = (
-                        self.current_round.get_next_player_id(user_id)
+                if (
+                    self.current_round.current_player_id
+                    == user_id
+                ):
+                    self.current_round.current_player_id = self.current_round.get_next_player_id(
+                        user_id
                     )
             # Remove from game-wide tracking
             del self.players[user_id]
@@ -149,8 +176,11 @@ class Game:
             self.waiting_players.remove(user_id)
 
         # Check if game should end due to insufficient players
-        if self.phase == GamePhase.PLAYING and len(self.get_active_players()) <= 1:
-            self.end_game()
+        if (
+            self.phase == GamePhase.PLAYING
+            and len(self.get_active_players()) <= 1
+        ):
+            await self.end_game()
 
     def get_active_players(self) -> List[Player]:
         """Get all non-eliminated players"""
@@ -158,7 +188,8 @@ class Game:
             [
                 p
                 for p in self.players.values()
-                if not p.is_eliminated and p.user.id not in self.waiting_players
+                if not p.is_eliminated
+                and p.user.id not in self.waiting_players
             ]
             if self.phase == GamePhase.PLAYING
             else []
@@ -169,10 +200,14 @@ class Game:
         if self.phase != GamePhase.PLAYING:
             return []
         result = [
-            user_id for user_id in self.waiting_players if user_id not in self.players
+            user_id
+            for user_id in self.waiting_players
+            if user_id not in self.players
         ]
         result.extend(
-            player.user.id for player in self.players.values() if player.is_eliminated
+            player.user.id
+            for player in self.players.values()
+            if player.is_eliminated
         )
         return result
 
@@ -182,9 +217,12 @@ class Game:
 
     def can_start_game(self) -> bool:
         """Check if game can be started"""
-        return self.phase == GamePhase.WAITING and len(self.players) >= 2
+        return (
+            self.phase == GamePhase.WAITING
+            and len(self.players) >= 2
+        )
 
-    def start_game(self) -> bool:
+    async def start_game(self) -> bool:
         """Start the game"""
         if not self.can_start_game():
             return False
@@ -200,16 +238,16 @@ class Game:
             player.cards = []
 
         # Start first round
-        self.start_new_round()
+        await self.start_new_round()
         return True
 
-    def start_new_round(self):
+    async def start_new_round(self):
         """Start a new round"""
         self.round_number += 1
         active_players = self.get_active_players()
 
         if len(active_players) <= 1:
-            self.end_game()
+            await self.end_game()
             return
 
         # Determine starting player
@@ -219,16 +257,22 @@ class Game:
         else:
             # Subsequent rounds: player to the left of previous round's starter
             if self.current_round:
-                prev_starter_id = self.current_round.starting_player_id
+                prev_starter_id = (
+                    self.current_round.starting_player_id
+                )
                 prev_index = next(
                     (
                         i
-                        for i, p in enumerate(active_players)
+                        for i, p in enumerate(
+                            active_players
+                        )
                         if p.user.id == prev_starter_id
                     ),
                     0,
                 )
-                next_index = (prev_index + 1) % len(active_players)
+                next_index = (prev_index + 1) % len(
+                    active_players
+                )
                 starting_player = active_players[next_index]
             else:
                 starting_player = active_players[0]
@@ -256,15 +300,25 @@ class Game:
         all_cards = []
         for player in self.current_round.players:
             cards_to_deal = player.next_round_cards
-            player.cards = self.current_round.deck.deal_cards(cards_to_deal)
+            player.cards = (
+                self.current_round.deck.deal_cards(
+                    cards_to_deal
+                )
+            )
             all_cards.extend(player.cards)
 
         self.current_round.all_cards = all_cards
         self.current_round.phase = RoundPhase.CALLING
 
-    def make_hand_call(self, user_id: str, hand: PokerHand) -> Tuple[bool, str]:
+    def make_hand_call(
+        self, user_id: str, hand: PokerHand
+    ) -> Tuple[bool, str]:
         """Player makes a hand call"""
-        if not self.current_round or self.current_round.phase != RoundPhase.CALLING:
+        if (
+            not self.current_round
+            or self.current_round.phase
+            != RoundPhase.CALLING
+        ):
             return False, "Not in calling phase"
 
         if self.current_round.current_player_id != user_id:
@@ -273,23 +327,38 @@ class Game:
         # Validate the call is higher than previous call
         current_call = self.current_round.get_current_call()
         if current_call:
-            if not HandComparator.is_valid_next_call(current_call.hand, hand):
-                return False, "Hand call must be higher than previous call"
+            if not HandComparator.is_valid_next_call(
+                current_call.hand, hand
+            ):
+                return (
+                    False,
+                    "Hand call must be higher than previous call",
+                )
 
         # Add the call
-        hand_call = HandCall(player_id=user_id, hand=hand, timestamp=datetime.now())
+        hand_call = HandCall(
+            player_id=user_id,
+            hand=hand,
+            timestamp=datetime.now(),
+        )
         self.current_round.hand_calls.append(hand_call)
 
         # Move to next player
-        self.current_round.current_player_id = self.current_round.get_next_player_id(
-            user_id
+        self.current_round.current_player_id = (
+            self.current_round.get_next_player_id(user_id)
         )
 
         return True, "Hand call made successfully"
 
-    def call_bluff(self, user_id: str) -> Tuple[bool, str, Dict | None]:
+    async def call_bluff(
+        self, user_id: str
+    ) -> Tuple[bool, str, Dict | None]:
         """Player calls bluff on the previous hand call"""
-        if not self.current_round or self.current_round.phase != RoundPhase.CALLING:
+        if (
+            not self.current_round
+            or self.current_round.phase
+            != RoundPhase.CALLING
+        ):
             return False, "Not in calling phase", None
 
         if self.current_round.current_player_id != user_id:
@@ -314,7 +383,7 @@ class Game:
             loser_id = current_call.player_id
 
         self.current_round.loser_id = loser_id
-        self.end_round(loser_id)
+        await self.end_round(loser_id)
         loser = self.get_player(loser_id)
         if loser is None:
             loser = None
@@ -333,7 +402,7 @@ class Game:
             loser,
         )
 
-    def end_round(self, loser_id: str):
+    async def end_round(self, loser_id: str):
         """End the current round with a loser"""
         if not self.current_round:
             return
@@ -351,19 +420,35 @@ class Game:
         # Check if game should end
         active_players = self.get_active_players()
         if len(active_players) <= 1:
-            self.end_game()
+            await self.end_game()
         else:
             # Start next round after a delay
-            self.start_new_round()
+            await self.start_new_round()
 
-    def end_game(self):
+    async def end_game(self):
         """End the game"""
+        self.winner_id = (
+            self.get_active_players()[0].user.id
+            if self.get_active_players()
+            else None
+        )
+
         self.phase = GamePhase.ENDED
         self.ended_at = datetime.now()
 
-        active_players = self.get_active_players()
-        if active_players:
-            self.winner_id = active_players[0].user.id
+        if (
+            self.winner_id is not None
+            and self.started_at is not None
+        ):
+            await DatabaseManager().save_game_result(
+                game=GameHistory(
+                    winner_id=self.winner_id,
+                    players=[
+                        player.user.id
+                        for player in self.players.values()
+                    ],
+                )
+            )
 
         # Move waiting players and reset the game state for the next match.
         # This fulfils Task 5.4 requirements (reset phase, round count, cards, etc.).
@@ -399,13 +484,19 @@ class Game:
                 if len(self.players) >= 8:
                     break  # Room is full
 
-                user_obj = user_session_manager.get_user_by_id(waiting_user_id)
+                user_obj = (
+                    user_session_manager.get_user_by_id(
+                        waiting_user_id
+                    )
+                )
                 if user_obj:
                     self.add_player(user_obj)
 
         # Remove transferred users from the waiting list
         self.waiting_players = [
-            uid for uid in self.waiting_players if uid not in self.players
+            uid
+            for uid in self.waiting_players
+            if uid not in self.players
         ]
 
         # At this point, all players' cards are already emptied above. By
@@ -429,7 +520,9 @@ class Game:
 
         current_call = None
         if self.current_round:
-            latest_call = self.current_round.get_current_call()
+            latest_call = (
+                self.current_round.get_current_call()
+            )
             if latest_call:
                 current_call = {
                     "player_id": latest_call.player_id,
@@ -443,11 +536,15 @@ class Game:
             "players": players_info,
             "round_number": self.round_number,
             "current_player_id": (
-                self.current_round.current_player_id if self.current_round else None
+                self.current_round.current_player_id
+                if self.current_round
+                else None
             ),
             "current_call": current_call,
             "winner_id": self.winner_id,
-            "waiting_players_count": len(self.waiting_players),
+            "waiting_players_count": len(
+                self.waiting_players
+            ),
         }
 
     def get_waiting_player_ids(self) -> List[str]:
@@ -469,14 +566,14 @@ def add_player_to_game(user: User) -> bool:
     return game_instance.add_player(user)
 
 
-def remove_player_from_game(user_id: str):
+async def remove_player_from_game(user_id: str):
     """Remove player from the game"""
-    game_instance.remove_player(user_id)
+    await game_instance.remove_player(user_id)
 
 
-def start_game() -> bool:
+async def start_game() -> bool:
     """Start the game"""
-    return game_instance.start_game()
+    return await game_instance.start_game()
 
 
 def restart_game():
@@ -484,19 +581,26 @@ def restart_game():
     game_instance.restart_game()
 
 
-def make_hand_call(user_id: str, hand: PokerHand) -> Tuple[bool, str]:
+def make_hand_call(
+    user_id: str, hand: PokerHand
+) -> Tuple[bool, str]:
     """Make a hand call"""
     return game_instance.make_hand_call(user_id, hand)
 
 
-def call_bluff(user_id: str) -> Tuple[bool, str, Optional[Dict]]:
+async def call_bluff(
+    user_id: str,
+) -> Tuple[bool, str, Optional[Dict]]:
     """Call bluff"""
-    return game_instance.call_bluff(user_id)
+    return await game_instance.call_bluff(user_id)
 
 
 def get_active_player_ids() -> List[str]:
     """Get IDs of active players"""
-    return [player.user.id for player in game_instance.get_active_players()]
+    return [
+        player.user.id
+        for player in game_instance.get_active_players()
+    ]
 
 
 def get_spectator_ids() -> List[str]:
@@ -504,10 +608,15 @@ def get_spectator_ids() -> List[str]:
     return game_instance.get_spectator_ids()
 
 
-def get_current_active_players_hands() -> Dict[str, List[Card]]:
+def get_current_active_players_hands() -> Dict[
+    str, List[Card]
+]:
     """Get current active players' hands"""
     active_players = game_instance.get_active_players()
-    return {player.user.id: player.cards for player in active_players}
+    return {
+        player.user.id: player.cards
+        for player in active_players
+    }
 
 
 def get_game_state() -> Dict:
