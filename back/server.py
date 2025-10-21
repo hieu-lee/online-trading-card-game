@@ -17,6 +17,7 @@ from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServerProtocol
 import os
 
+from ai_client import AIBotManager
 from message_protocol import (
     MessageType,
     create_message,
@@ -45,6 +46,7 @@ from game_logic import (
     get_current_active_players_hands,
     get_spectator_ids,
     get_active_player_ids,
+    get_current_round_context,
 )
 from card_system import PokerHand, HandType, Suit, Rank
 from card_system import HandParser
@@ -68,6 +70,10 @@ class GameServer:
         self.user_connections: Dict[
             str, WebSocketServerProtocol
         ] = {}
+        self.bot_manager = AIBotManager(
+            call_hand_fn=self.handle_call_hand,
+            call_bluff_fn=self.handle_call_bluff,
+        )
 
     async def register_connection(
         self, websocket: WebSocketServerProtocol
@@ -243,6 +249,13 @@ class GameServer:
 
         # Also send waiting list details privately to host
         await self._send_waiting_list_to_host()
+
+        # Trigger AI bot evaluation after broadcasting
+        round_context = get_current_round_context()
+        if round_context:
+            self.bot_manager.schedule_turn(round_context)
+        elif game_state.get("phase") != "playing":
+            self.bot_manager.clear_all_round_caches()
 
     async def _send_waiting_list_to_host(self):
         """Send the current waiting list (usernames) only to the host client"""
@@ -581,6 +594,109 @@ class GameServer:
                 user_id, error_message
             )
 
+    async def handle_add_bot(
+        self, host_id: str, data: Dict
+    ):
+        """Handle host request to add an AI bot"""
+        if not is_host(host_id):
+            return
+
+        bot_name = data.get("bot_name")
+        game_state = get_game_state()
+        if game_state.get("phase") != "waiting":
+            error_message = create_message(
+                MessageType.ERROR,
+                {
+                    "message": "Bots can only be added before the game starts."
+                },
+            )
+            await self.send_message_to_user(
+                host_id, error_message
+            )
+            return
+
+        existing_names = {
+            player["username"]
+            for player in game_state.get("players", [])
+        }
+        existing_names.update(
+            profile.user.username
+            for profile in self.bot_manager.list_bots().values()
+        )
+
+        bot_user = self.bot_manager.register_bot(
+            desired_name=bot_name,
+            existing_usernames=existing_names,
+        )
+        added = add_player_to_game(bot_user)
+        if not added:
+            self.bot_manager.unregister_bot(bot_user.id)
+            error_message = create_message(
+                MessageType.ERROR,
+                {
+                    "message": "Unable to add bot to the game at this time."
+                },
+            )
+            await self.send_message_to_user(
+                host_id, error_message
+            )
+            return
+
+        await self.broadcast_game_state()
+        confirmation = create_message(
+            MessageType.PLAYER_UPDATE,
+            {
+                "bot_added": {
+                    "user_id": bot_user.id,
+                    "username": bot_user.username,
+                }
+            },
+        )
+        await self.broadcast_message(confirmation)
+
+    async def handle_remove_bot(
+        self, host_id: str, data: Dict
+    ):
+        """Handle host request to remove an AI bot"""
+        if not is_host(host_id):
+            return
+
+        bot_id = data.get("bot_id")
+        if not bot_id:
+            error_message = create_message(
+                MessageType.ERROR,
+                {"message": "bot_id is required to remove a bot"},
+            )
+            await self.send_message_to_user(
+                host_id, error_message
+            )
+            return
+
+        profile = self.bot_manager.get_bot(bot_id)
+        if not profile:
+            error_message = create_message(
+                MessageType.ERROR,
+                {"message": "Bot not found"},
+            )
+            await self.send_message_to_user(
+                host_id, error_message
+            )
+            return
+
+        await remove_player_from_game(bot_id)
+        self.bot_manager.unregister_bot(bot_id)
+        await self.broadcast_game_state()
+        notification = create_message(
+            MessageType.PLAYER_UPDATE,
+            {
+                "bot_removed": {
+                    "user_id": profile.user.id,
+                    "username": profile.user.username,
+                }
+            },
+        )
+        await self.broadcast_message(notification)
+
     async def handle_message(
         self,
         websocket: WebSocketServerProtocol,
@@ -625,6 +741,16 @@ class GameServer:
                 user_id = data.get("user_id")
                 if user_id:
                     await self.handle_call_bluff(user_id)
+
+            elif message.type == MessageType.ADD_BOT:
+                host_id = data.get("host_id")
+                if host_id:
+                    await self.handle_add_bot(host_id, data)
+
+            elif message.type == MessageType.REMOVE_BOT:
+                host_id = data.get("host_id")
+                if host_id:
+                    await self.handle_remove_bot(host_id, data)
 
             else:
                 logger.warning(

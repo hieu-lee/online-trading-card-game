@@ -11,7 +11,7 @@ This module handles:
 
 import random
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -547,6 +547,71 @@ class Game:
             ),
         }
 
+    def get_round_context(self) -> Optional[Dict[str, Any]]:
+        """Get detailed context for the current round"""
+        if not self.current_round:
+            return None
+
+        players_in_round = []
+        for player in self.current_round.players:
+            players_in_round.append(
+                {
+                    "user_id": player.user.id,
+                    "username": player.user.username,
+                    "card_count": player.card_count,
+                    "losses": player.losses,
+                    "is_eliminated": player.is_eliminated,
+                }
+            )
+
+        hand_history = []
+        for call in self.current_round.hand_calls:
+            caller = self.players.get(call.player_id)
+            hand_history.append(
+                {
+                    "player_id": call.player_id,
+                    "username": caller.user.username
+                    if caller
+                    else call.player_id,
+                    "hand": str(call.hand),
+                    "timestamp": call.timestamp.isoformat(),
+                }
+            )
+
+        current_player = None
+        next_player = None
+        if self.current_round.current_player_id:
+            current_player_obj = self.players.get(
+                self.current_round.current_player_id
+            )
+            if current_player_obj:
+                current_player = {
+                    "user_id": current_player_obj.user.id,
+                    "username": current_player_obj.user.username,
+                }
+            try:
+                next_player_id = self.current_round.get_next_player_id(
+                    self.current_round.current_player_id
+                )
+                next_player_obj = self.players.get(next_player_id)
+                if next_player_obj:
+                    next_player = {
+                        "user_id": next_player_obj.user.id,
+                        "username": next_player_obj.user.username,
+                    }
+            except Exception:
+                # If we cannot determine the next player, leave as None
+                next_player = None
+
+        return {
+            "round_number": self.current_round.round_number,
+            "phase": self.current_round.phase.value,
+            "players": players_in_round,
+            "hand_history": hand_history,
+            "current_player": current_player,
+            "next_player": next_player,
+        }
+
     def get_waiting_player_ids(self) -> List[str]:
         """Return a copy of waiting player user IDs"""
         return self.waiting_players.copy()
@@ -622,6 +687,11 @@ def get_current_active_players_hands() -> Dict[
 def get_game_state() -> Dict:
     """Get current game state"""
     return game_instance.get_game_state()
+
+
+def get_current_round_context() -> Optional[Dict[str, Any]]:
+    """Get contextual information for the current round"""
+    return game_instance.get_round_context()
 
 
 def can_start_game() -> bool:
