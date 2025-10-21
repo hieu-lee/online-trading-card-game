@@ -146,9 +146,15 @@ class AIBotController:
     ):
         self.user = user
         self._client = client or AsyncOpenAI()
-        self._model = model or os.getenv(
-            "OPENAI_BOT_MODEL", "gpt-4o-mini"
+        configured_model = (
+            model or os.getenv("OPENAI_BOT_MODEL")
         )
+        default_model = "gpt-5"
+        if configured_model and configured_model.startswith("gpt-5"):
+            self._model = configured_model
+        else:
+            self._model = default_model
+        self._reasoning_effort = "medium"
         self._lock = asyncio.Lock()
         self._last_state_key: Optional[str] = None
         self._active_round: Optional[int] = None
@@ -224,6 +230,7 @@ class AIBotController:
                 "json_schema": BOT_DECISION_SCHEMA,
             },
             temperature=0.7,
+            reasoning={"effort": self._reasoning_effort},
         )
         output_text = response.output_text
         decision = BotDecision.model_validate_json(output_text)
