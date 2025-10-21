@@ -21,6 +21,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, model_validator
 
 from user_manager import User
+from card_system import HandParser, HandComparator
 
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,9 @@ def _build_system_prompt() -> str:
 
 
 SYSTEM_PROMPT = _build_system_prompt()
+
+DEFAULT_FIRST_TURN_SPEC = "High Card Ace"
+DEFAULT_FOLLOWUP_SPEC = "Royal Flush Hearts"
 
 
 def _format_prompt(context: Dict[str, Any]) -> str:
@@ -224,6 +228,7 @@ class AIBotController:
 
             try:
                 decision = await self._invoke_llm(context)
+                decision = self._normalize_decision(context, decision)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
                     "Bot %s failed to get decision: %s",
@@ -234,6 +239,83 @@ class AIBotController:
 
             self._last_state_key = state_key
             return decision
+
+    def _normalize_decision(
+        self, context: Dict[str, Any], decision: BotDecision
+    ) -> BotDecision:
+        """Adjust the LLM output to comply with game rules.
+
+        Ensures hand specifications are parsable and legal so the server never
+        rejects the bot's action silently.
+        """
+
+        history = context.get("hand_history", []) or []
+        is_first_turn = not history
+
+        if decision.action == "call_bluff":
+            if is_first_turn:
+                logger.warning(
+                    "Bot %s attempted to call bluff on first turn; coercing to hand call",
+                    self.user.username,
+                )
+                fallback_hand = HandParser.parse_hand_call(
+                    DEFAULT_FIRST_TURN_SPEC
+                )
+                return BotDecision(
+                    action="call_hand",
+                    hand_spec=str(fallback_hand),
+                )
+            return decision
+
+        raw_spec = (decision.hand_spec or "").strip()
+        parsed_hand = None
+
+        if raw_spec:
+            try:
+                parsed_hand = HandParser.parse_hand_call(raw_spec)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Bot %s produced unparsable hand spec '%s': %s",
+                    self.user.username,
+                    raw_spec,
+                    exc,
+                )
+
+        if parsed_hand is None:
+            fallback_spec = (
+                DEFAULT_FIRST_TURN_SPEC if is_first_turn else DEFAULT_FOLLOWUP_SPEC
+            )
+            parsed_hand = HandParser.parse_hand_call(fallback_spec)
+            logger.info(
+                "Bot %s hand spec replaced with fallback '%s'",
+                self.user.username,
+                str(parsed_hand),
+            )
+
+        if history:
+            previous = history[-1].get("hand")
+            if previous:
+                try:
+                    prev_hand = HandParser.parse_hand_call(previous)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Failed to parse previous hand '%s': %s",
+                        previous,
+                        exc,
+                    )
+                else:
+                    if not HandComparator.is_valid_next_call(prev_hand, parsed_hand):
+                        logger.info(
+                            "Bot %s proposed non-increasing hand '%s'; switching to bluff",
+                            self.user.username,
+                            str(parsed_hand),
+                        )
+                        return BotDecision(action="call_bluff")
+
+        canonical_spec = str(parsed_hand)
+        if canonical_spec != raw_spec:
+            decision = decision.model_copy(update={"hand_spec": canonical_spec})
+        return decision
 
     async def _invoke_llm(
         self, context: Dict[str, Any]
