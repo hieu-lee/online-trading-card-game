@@ -32,6 +32,8 @@ class MessageType(str, Enum):
     CALL_HAND = "call_hand"
     CALL_BLUFF = "call_bluff"
     SHOW_CARDS = "show_cards"
+    ADD_BOT = "add_bot"
+    REMOVE_BOT = "remove_bot"
     
     # Host messages
     HOST_CHANGED = "host_changed"
@@ -90,6 +92,17 @@ class CallBluffMessage(BaseModel):
     """Message for calling bluff"""
     user_id: str
     target_user: str
+
+class AddBotMessage(BaseModel):
+    """Message for host to add an AI bot"""
+    host_id: str
+    bot_name: Optional[str] = None
+
+
+class RemoveBotMessage(BaseModel):
+    """Message for host to remove an AI bot"""
+    host_id: str
+    bot_id: str
 
 
 class KickUserMessage(BaseModel):
