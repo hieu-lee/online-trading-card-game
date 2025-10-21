@@ -40,6 +40,7 @@ interface PlayersTableProps {
   currentUserId: string
   yourCards: Card[]
   isHost: boolean
+  botIds: Set<string>
   onKickPlayer: (username: string) => void
 }
 
@@ -65,6 +66,7 @@ export function PlayersTable({
   currentUserId,
   yourCards,
   isHost,
+  botIds,
   onKickPlayer,
 }: PlayersTableProps) {
   const isMobile = useIsMobile()
@@ -173,13 +175,21 @@ export function PlayersTable({
   const UsernameBox: React.FC<{
     player: Player
     borderColor: string
-  }> = ({ player, borderColor }) => {
-    const showKick = isHost && player.user_id !== currentUserId
+    isBot: boolean
+  }> = ({ player, borderColor, isBot }) => {
+    const showKick = isHost && player.user_id !== currentUserId && !isBot
     return (
       <div
         className={`relative px-2 py-1 rounded-md bg-slate-800 text-white text-sm border-2 flex items-center justify-center ${borderColor}`}
       >
-        {player.username}
+        <span className="flex items-center gap-1">
+          {isBot && (
+            <span role="img" aria-label="Bot" title="AI controlled player">
+              🤖
+            </span>
+          )}
+          {player.username}
+        </span>
         {showKick && (
           <button
             onClick={() => onKickPlayer(player.username)}
@@ -207,6 +217,7 @@ export function PlayersTable({
 
               const isActiveTurn = gamePhase === "playing" && player.user_id === currentPlayerId
               const isEliminated = player.is_eliminated
+              const isBot = botIds.has(player.user_id)
               const borderColor = isEliminated
                 ? "border-red-600"
                 : isActiveTurn
@@ -223,7 +234,7 @@ export function PlayersTable({
               return (
                 <React.Fragment key={player.user_id}>
                   {/* Username column */}
-                  <UsernameBox player={player} borderColor={borderColor} />
+                  <UsernameBox player={player} borderColor={borderColor} isBot={isBot} />
 
                   {/* Cards column */}
                   <div className="flex items-center">
@@ -304,6 +315,7 @@ export function PlayersTable({
 
               const isActiveTurn = gamePhase === "playing" && player.user_id === currentPlayerId
               const isEliminated = player.is_eliminated
+              const isBot = botIds.has(player.user_id)
               const borderColor = isEliminated
                 ? "border-red-600"
                 : isActiveTurn
@@ -325,7 +337,7 @@ export function PlayersTable({
                   style={{ top: pos.top, left: pos.left, transform: pos.transform }}
                 >
                   {/* Username */}
-                  <UsernameBox player={player} borderColor={borderColor} />
+                  <UsernameBox player={player} borderColor={borderColor} isBot={isBot} />
 
                   {/* Card count or current hand (hide if eliminated) */}
                   {!isEliminated && (

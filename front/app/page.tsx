@@ -58,6 +58,7 @@ export default function Component() {
   const { messages, addMessage } = useMessages()
 
   const { playerLastCalls, setPlayerLastCalls } = usePlayerLastCalls()
+  const [botPlayers, setBotPlayers] = useState<{ user_id: string; username: string }[]>([])
 
   const {
     yourCards,
@@ -105,6 +106,10 @@ export default function Component() {
     }) => {
       setGameState(data.game_state)
       setOnlineUsers(data.online_users || [])
+      const botsFromState = (data.game_state?.players || [])
+        .filter((player) => !(data.online_users || []).includes(player.username))
+        .map((player) => ({ user_id: player.user_id, username: player.username }))
+      setBotPlayers(botsFromState)
 
       // Handle current round hands (for display in table)
       if (data.current_round_cards && data.current_round_cards.length > 0) {
@@ -137,9 +142,29 @@ export default function Component() {
       }
     })
 
-    addMessageHandler(MessageType.PLAYER_UPDATE, (data: { your_cards?: Card[] }) => {
+    addMessageHandler(MessageType.PLAYER_UPDATE, (data: {
+      your_cards?: Card[],
+      bot_added?: { user_id: string; username: string },
+      bot_removed?: { user_id: string; username: string }
+    }) => {
       if (data.your_cards !== undefined) {
         setYourCards(data.your_cards)
+      }
+      if (data.bot_added) {
+        const { user_id: botId, username: botName } = data.bot_added
+        setBotPlayers((prev) => {
+          if (prev.find((bot) => bot.user_id === botId)) {
+            return prev
+          }
+          return [...prev, { user_id: botId, username: botName }]
+        })
+        addMessage(`Bot ${botName} joined the table`)
+      }
+      if (data.bot_removed) {
+        const { user_id: botId, username: botName } = data.bot_removed
+        setBotPlayers((prev) => prev.filter((bot) => bot.user_id !== botId))
+        const removedName = botName || "Bot"
+        addMessage(`${removedName} left the table`)
       }
     })
 
@@ -257,6 +282,20 @@ export default function Component() {
     sendMessage(MessageType.KICK_USER, { host_id: userId, target_username: targetUsername })
   }
 
+  const handleAddBot = (botName?: string) => {
+    if (!isHost) return
+    const payload: Record<string, unknown> = { host_id: userId }
+    if (botName) {
+      payload.bot_name = botName
+    }
+    sendMessage(MessageType.ADD_BOT, payload)
+  }
+
+  const handleRemoveBot = (botId: string) => {
+    if (!isHost) return
+    sendMessage(MessageType.REMOVE_BOT, { host_id: userId, bot_id: botId })
+  }
+
   const isYourTurn = gameState?.phase === "playing" && gameState?.current_player_id === userId
   const currentCall = gameState?.current_call?.hand
 
@@ -314,6 +353,7 @@ export default function Component() {
           currentUserId={userId}
           yourCards={yourCards}
           isHost={isHost}
+          botIds={new Set(botPlayers.map((bot) => bot.user_id))}
           onKickPlayer={handleKickPlayer}
         />
 
@@ -322,11 +362,14 @@ export default function Component() {
           phase={gameState?.phase}
           onStart={handleStartGame}
           onRestart={handleRestartGame}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
+          bots={botPlayers}
         />
 
         {/* Game Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <OnlineUsersCard onlineUsers={onlineUsers} />
+          <OnlineUsersCard onlineUsers={onlineUsers} bots={botPlayers.map((bot) => bot.username)} />
           <GameStatusCard
             roundNumber={gameState?.round_number}
             waitingPlayers={gameState?.waiting_players_count}

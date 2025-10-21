@@ -8,6 +8,7 @@ export interface Player {
   username: string
   card_count: number
   is_eliminated: boolean
+  is_bot?: boolean
 }
 
 export interface GameState {
@@ -50,5 +51,7 @@ export enum MessageType {
   CALL_BLUFF = "call_bluff",
   CALL_HAND = "call_hand",
   KICK_USER = "kick_user",
+  ADD_BOT = "add_bot",
+  REMOVE_BOT = "remove_bot",
   ERROR = "error",
 }
