@@ -265,7 +265,6 @@ class AIBotController:
                 text={"verbosity": "low"},
                 text_format=FirstTurnDecision if is_first_turn else BotDecision,
                 reasoning={"effort": self._reasoning_effort},
-                temperature=0.7,
             )
             parsed = getattr(response, "output_parsed", None)
             if parsed is None:
@@ -292,7 +291,6 @@ class AIBotController:
                 model=self._model,
                 instructions=SYSTEM_PROMPT,
                 input=user_prompt,
-                temperature=0.7,
                 reasoning={"effort": self._reasoning_effort},
                 extra_body={
                     "response_format": {
