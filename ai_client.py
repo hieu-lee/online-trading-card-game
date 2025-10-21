@@ -56,6 +56,27 @@ BOT_DECISION_SCHEMA: Dict[str, Any] = {
     },
 }
 
+
+class FirstTurnDecision(BaseModel):
+    """Structured decision when the bot plays the very first call of a round.
+
+    Bluffing is not legal for the opening move; only a concrete hand call
+    is allowed and must include a valid `hand_spec`.
+    """
+
+    action: Literal["call_hand"]
+    hand_spec: str
+
+
+FIRST_TURN_DECISION_SCHEMA: Dict[str, Any] = {
+    "name": "first_turn_decision",
+    "strict": True,
+    "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        **FirstTurnDecision.model_json_schema(),
+    },
+}
+
 RULES_TEXT: str = ""
 RULES_PATH = Path(__file__).resolve().parent / "RULE.md"
 try:
@@ -111,6 +132,7 @@ def _format_prompt(context: Dict[str, Any]) -> str:
         else []
     )
     next_player = context.get("next_player", {})
+    is_first_turn = not bool(history_lines)
 
     prompt_payload = {
         "round_number": context.get("round_number"),
@@ -118,12 +140,15 @@ def _format_prompt(context: Dict[str, Any]) -> str:
         "next_player": next_player,
         "players_card_counts": players_summary,
         "hand_history_this_round": history_lines,
+        "is_first_turn": is_first_turn,
         "requirements": [
             "You must either call a higher poker hand than the latest call "
             "or call bluff.",
             "Return JSON only. No explanations.",
             "When calling a hand, the hand_spec must match the game's required "
             "format for that hand type.",
+            "If is_first_turn is true (no prior calls this round), you may NOT "
+            "call bluff. You must choose action=call_hand with a valid hand_spec.",
         ],
     }
 
@@ -215,25 +240,73 @@ class AIBotController:
     ) -> BotDecision:
         """Call the OpenAI Responses API and parse the output."""
         user_prompt = _format_prompt(context)
+        history = context.get("hand_history", []) or []
+        is_first_turn = len(history) == 0
         logger.debug(
             "Bot %s querying model %s with prompt: %s",
             self.user.username,
             self._model,
             user_prompt,
         )
-        response = await self._client.responses.create(
-            model=self._model,
-            instructions=SYSTEM_PROMPT,
-            input=user_prompt,
-            response_format={
-                "type": "json_schema",
-                "json_schema": BOT_DECISION_SCHEMA,
-            },
-            temperature=0.7,
-            reasoning={"effort": self._reasoning_effort},
-        )
-        output_text = response.output_text
-        decision = BotDecision.model_validate_json(output_text)
+        # Prefer structured parsing when supported by the SDK; otherwise
+        # fall back to JSON schema via extra_body.
+        decision: BotDecision
+        try:
+            parse_method = getattr(self._client.responses, "parse", None)
+        except Exception:  # pragma: no cover - defensive
+            parse_method = None
+
+        if callable(parse_method):
+            # Newer SDKs support direct Pydantic parsing.
+            response = await parse_method(
+                model=self._model,
+                instructions=SYSTEM_PROMPT,
+                input=user_prompt,
+                text={"verbosity": "low"},
+                text_format=FirstTurnDecision if is_first_turn else BotDecision,
+                reasoning={"effort": self._reasoning_effort},
+                temperature=0.7,
+            )
+            parsed = getattr(response, "output_parsed", None)
+            if parsed is None:
+                # Fallback to text if parsing not populated for some reason
+                output_text = response.output_text
+                if is_first_turn:
+                    ft = FirstTurnDecision.model_validate_json(output_text)
+                    decision = BotDecision(action="call_hand", hand_spec=ft.hand_spec)
+                else:
+                    decision = BotDecision.model_validate_json(output_text)
+            else:
+                if is_first_turn and isinstance(parsed, FirstTurnDecision):
+                    decision = BotDecision(action="call_hand", hand_spec=parsed.hand_spec)
+                elif isinstance(parsed, BotDecision):
+                    decision = parsed
+                else:
+                    # In mixed/unknown case, coerce through JSON
+                    decision = BotDecision.model_validate_json(response.output_text)
+        else:
+            # Older SDKs (<=1.40) don't accept response_format as a named arg.
+            # Send it via extra_body to avoid AsyncResponses.create() error.
+            schema = FIRST_TURN_DECISION_SCHEMA if is_first_turn else BOT_DECISION_SCHEMA
+            response = await self._client.responses.create(
+                model=self._model,
+                instructions=SYSTEM_PROMPT,
+                input=user_prompt,
+                temperature=0.7,
+                reasoning={"effort": self._reasoning_effort},
+                extra_body={
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": schema,
+                    }
+                },
+            )
+            output_text = response.output_text
+            if is_first_turn:
+                ft = FirstTurnDecision.model_validate_json(output_text)
+                decision = BotDecision(action="call_hand", hand_spec=ft.hand_spec)
+            else:
+                decision = BotDecision.model_validate_json(output_text)
         logger.info(
             "Bot %s decided to %s",
             self.user.username,
