@@ -212,7 +212,26 @@ class AIBotController:
         """Create a signature to debounce duplicate LLM calls."""
         hand_history_count = len(context.get("hand_history", []))
         phase = context.get("phase")
-        return f"{context.get('round_number')}:{hand_history_count}:{phase}"
+        last_history = ""
+        if hand_history_count:
+            last_entry = context["hand_history"][-1]
+            last_history = f"{last_entry.get('player_id') or last_entry.get('username')}|{last_entry.get('hand')}"
+        current_player_id = (
+            (context.get("current_player") or {}).get("user_id")
+        )
+        players_snapshot = tuple(
+            (
+                player.get("user_id") or player.get("username"),
+                player.get("losses"),
+                player.get("card_count"),
+            )
+            for player in context.get("players", [])
+        )
+        round_number = context.get("round_number")
+        return (
+            f"{round_number}:{phase}:{current_player_id}:"
+            f"{hand_history_count}:{last_history}:{players_snapshot}"
+        )
 
     def _should_act(self, context: Dict[str, Any]) -> bool:
         """Determine if the bot should act given the context."""
@@ -239,6 +258,11 @@ class AIBotController:
         async with self._lock:
             state_key = self._state_signature(context)
             if state_key == self._last_state_key:
+                logger.debug(
+                    "Bot %s skipping duplicate state %s",
+                    self.user.username,
+                    state_key,
+                )
                 return None
 
             attempt = 0
