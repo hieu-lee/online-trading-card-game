@@ -193,7 +193,7 @@ class AIBotController:
         configured_model = (
             model or os.getenv("OPENAI_BOT_MODEL")
         )
-        default_model = "gpt-5-mini"
+        default_model = "gpt-5"
         if configured_model and configured_model.startswith("gpt-5"):
             self._model = configured_model
         else:
