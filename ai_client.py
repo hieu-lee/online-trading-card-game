@@ -193,12 +193,12 @@ class AIBotController:
         configured_model = (
             model or os.getenv("OPENAI_BOT_MODEL")
         )
-        default_model = "gpt-5-mini"
+        default_model = "gpt-5"
         if configured_model and configured_model.startswith("gpt-5"):
             self._model = configured_model
         else:
             self._model = default_model
-        self._reasoning_effort = "high"
+        self._reasoning_effort = "medium"
         self._lock = asyncio.Lock()
         self._last_state_key: Optional[str] = None
         self._active_round: Optional[int] = None
@@ -413,6 +413,7 @@ class AIBotController:
                 text={"verbosity": "low"},
                 text_format=FirstTurnDecision if is_first_turn else BotDecision,
                 reasoning={"effort": self._reasoning_effort},
+                timeout=50,
             )
             parsed = getattr(response, "output_parsed", None)
             if parsed is None:
@@ -446,6 +447,7 @@ class AIBotController:
                         "json_schema": schema,
                     }
                 },
+                timeout=50,
             )
             output_text = response.output_text
             if is_first_turn:
