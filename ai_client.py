@@ -379,6 +379,10 @@ class AIBotController:
     ) -> BotDecision:
         """Call the OpenAI Responses API and parse the output."""
         user_prompt = _format_prompt(context)
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
         history = context.get("hand_history", []) or []
         is_first_turn = len(history) == 0
         logger.debug(
@@ -399,8 +403,7 @@ class AIBotController:
             # Newer SDKs support direct Pydantic parsing.
             response = await parse_method(
                 model=self._model,
-                instructions=SYSTEM_PROMPT,
-                input=user_prompt,
+                input=messages,
                 text={"verbosity": "low"},
                 text_format=FirstTurnDecision if is_first_turn else BotDecision,
                 reasoning={"effort": self._reasoning_effort},
@@ -428,9 +431,9 @@ class AIBotController:
             schema = FIRST_TURN_DECISION_SCHEMA if is_first_turn else BOT_DECISION_SCHEMA
             response = await self._client.responses.create(
                 model=self._model,
-                instructions=SYSTEM_PROMPT,
-                input=user_prompt,
+                input=messages,
                 reasoning={"effort": self._reasoning_effort},
+                text={"verbosity": "low"},
                 extra_body={
                     "response_format": {
                         "type": "json_schema",
