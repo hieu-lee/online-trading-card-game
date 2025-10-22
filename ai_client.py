@@ -48,6 +48,19 @@ class BotDecision(BaseModel):
         return self
 
 
+class RetryDecisionError(Exception):
+    """Raised when a bot decision attempt should be retried."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        fallback: Optional[BotDecision] = None,
+    ):
+        super().__init__(message)
+        self.fallback = fallback
+
+
 BOT_DECISION_SCHEMA: Dict[str, Any] = {
     "name": "bot_decision",
     "strict": True,
@@ -166,6 +179,8 @@ def _format_prompt(context: Dict[str, Any]) -> str:
 class AIBotController:
     """Controls a single AI bot player."""
 
+    _MAX_DECISION_ATTEMPTS = 3
+
     def __init__(
         self,
         user: User,
@@ -178,7 +193,7 @@ class AIBotController:
         configured_model = (
             model or os.getenv("OPENAI_BOT_MODEL")
         )
-        default_model = "gpt-5"
+        default_model = "gpt-5-mini"
         if configured_model and configured_model.startswith("gpt-5"):
             self._model = configured_model
         else:
@@ -226,16 +241,55 @@ class AIBotController:
             if state_key == self._last_state_key:
                 return None
 
-            try:
-                decision = await self._invoke_llm(context)
-                decision = self._normalize_decision(context, decision)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(
-                    "Bot %s failed to get decision: %s",
-                    self.user.username,
-                    exc,
-                )
-                return None
+            attempt = 0
+            last_exc: Optional[Exception] = None
+            decision: Optional[BotDecision] = None
+            fallback: Optional[BotDecision] = None
+
+            while attempt < self._MAX_DECISION_ATTEMPTS:
+                attempt += 1
+                try:
+                    llm_decision = await self._invoke_llm(context)
+                    decision = self._normalize_decision(
+                        context, llm_decision
+                    )
+                    break
+                except RetryDecisionError as exc:
+                    last_exc = exc
+                    fallback = exc.fallback or fallback
+                    logger.warning(
+                        "Bot %s decision attempt %s/%s needs retry: %s",
+                        self.user.username,
+                        attempt,
+                        self._MAX_DECISION_ATTEMPTS,
+                        exc,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    last_exc = exc
+                    logger.warning(
+                        "Bot %s decision attempt %s/%s failed: %s",
+                        self.user.username,
+                        attempt,
+                        self._MAX_DECISION_ATTEMPTS,
+                        exc,
+                    )
+
+            if decision is None:
+                if fallback is not None:
+                    logger.info(
+                        "Bot %s falling back to safe decision after retries",
+                        self.user.username,
+                    )
+                    decision = fallback
+                else:
+                    if last_exc:
+                        logger.error(
+                            "Bot %s failed to get decision after %s attempts: %s",
+                            self.user.username,
+                            self._MAX_DECISION_ATTEMPTS,
+                            last_exc,
+                        )
+                    return None
 
             self._last_state_key = state_key
             return decision
@@ -274,12 +328,17 @@ class AIBotController:
             try:
                 parsed_hand = HandParser.parse_hand_call(raw_spec)
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Bot %s produced unparsable hand spec '%s': %s",
-                    self.user.username,
-                    raw_spec,
-                    exc,
+                fallback_hand = HandParser.parse_hand_call(
+                    DEFAULT_FIRST_TURN_SPEC
+                    if is_first_turn
+                    else DEFAULT_FOLLOWUP_SPEC
                 )
+                raise RetryDecisionError(
+                    f"unparsable hand spec '{raw_spec}'",
+                    fallback=BotDecision(
+                        action="call_hand", hand_spec=str(fallback_hand)
+                    ),
+                ) from exc
 
         if parsed_hand is None:
             fallback_spec = (
@@ -305,12 +364,10 @@ class AIBotController:
                     )
                 else:
                     if not HandComparator.is_valid_next_call(prev_hand, parsed_hand):
-                        logger.info(
-                            "Bot %s proposed non-increasing hand '%s'; switching to bluff",
-                            self.user.username,
-                            str(parsed_hand),
+                        raise RetryDecisionError(
+                            f"non-increasing hand '{parsed_hand}'",
+                            fallback=BotDecision(action="call_bluff"),
                         )
-                        return BotDecision(action="call_bluff")
 
         canonical_spec = str(parsed_hand)
         if canonical_spec != raw_spec:
