@@ -179,7 +179,7 @@ def _format_prompt(context: Dict[str, Any]) -> str:
 class AIBotController:
     """Controls a single AI bot player."""
 
-    _MAX_DECISION_ATTEMPTS = 3
+    _MAX_DECISION_ATTEMPTS = 10
 
     def __init__(
         self,
@@ -193,12 +193,12 @@ class AIBotController:
         configured_model = (
             model or os.getenv("OPENAI_BOT_MODEL")
         )
-        default_model = "gpt-5"
+        default_model = "gpt-5-mini"
         if configured_model and configured_model.startswith("gpt-5"):
             self._model = configured_model
         else:
             self._model = default_model
-        self._reasoning_effort = "medium"
+        self._reasoning_effort = "high"
         self._lock = asyncio.Lock()
         self._last_state_key: Optional[str] = None
         self._active_round: Optional[int] = None
@@ -248,6 +248,12 @@ class AIBotController:
 
             while attempt < self._MAX_DECISION_ATTEMPTS:
                 attempt += 1
+                logger.info(
+                    "Bot %s starting LLM query (attempt %s/%s)",
+                    self.user.username,
+                    attempt,
+                    self._MAX_DECISION_ATTEMPTS,
+                )
                 try:
                     llm_decision = await self._invoke_llm(context)
                     decision = self._normalize_decision(
